@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<ruleset name="GCO Police Data">
+	<description>WordPress Coding Standards for the GCO Police Data plugin.</description>
+
+	<file>.</file>
+	<exclude-pattern>/vendor/</exclude-pattern>
+	<exclude-pattern>/node_modules/</exclude-pattern>
+	<exclude-pattern>/dev/</exclude-pattern>
+	<exclude-pattern>/tests/</exclude-pattern>
+	<exclude-pattern>*/includes/lib/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="colors"/>
+	<arg value="sp"/>
+	<arg name="cache" value=".phpcs-cache"/>
+
+	<config name="testVersion" value="8.1-"/>
+	<config name="minimum_wp_version" value="6.5"/>
+
+	<rule ref="WordPress"/>
+	<rule ref="PHPCompatibilityWP"/>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="gco_pd"/>
+				<element value="GCO_PD"/>
+			</property>
+		</properties>
+	</rule>
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="gco-police-data"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- File names follow the class-<name>.php convention described in the plan. -->
+</ruleset>
