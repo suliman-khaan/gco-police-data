@@ -308,7 +308,22 @@ final class GCO_PD_Admin {
 	 * Settings screen.
 	 */
 	public static function page_settings() {
-		self::render( 'settings', array( 'settings' => GCO_PD_Settings::all() ) );
+		self::render(
+			'settings',
+			array(
+				'settings' => GCO_PD_Settings::all(),
+				'pages'    => get_posts(
+					array(
+						'post_type'      => 'page',
+						'post_status'    => 'publish',
+						'posts_per_page' => 500,
+						'orderby'        => 'title',
+						'order'          => 'ASC',
+						'no_found_rows'  => true,
+					)
+				),
+			)
+		);
 	}
 
 	/* ------------------------------------------------------------------- Handlers */

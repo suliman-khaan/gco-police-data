@@ -68,6 +68,7 @@ final class GCO_PD_Plugin {
 	private function __construct() {
 		self::autoload_register();
 		add_action( 'plugins_loaded', array( 'GCO_PD_Install', 'maybe_upgrade' ) );
+		GCO_PD_Cache::init();
 		add_action( 'init', array( $this, 'load_textdomain' ) );
 		if ( is_admin() ) {
 			GCO_PD_Admin::init();

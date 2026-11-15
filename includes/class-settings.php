@@ -17,19 +17,38 @@ final class GCO_PD_Settings {
 	/**
 	 * Default values. Both options are off unless the site owner turns them on.
 	 *
-	 * @return array<string,bool>
+	 * @return array<string,bool|int>
 	 */
 	public static function defaults() {
 		return array(
 			'show_pdf_public' => false, // Link the FOI PDF publicly on force pages.
 			'delete_data'     => false, // Remove tables and options when the plugin is deleted.
+			'portal_page_id'  => 0,     // The police licensing portal page (its page cache is cleared on publish).
 		);
+	}
+
+	/**
+	 * Keys stored as whole numbers rather than on/off flags.
+	 *
+	 * @var string[]
+	 */
+	const INT_KEYS = array( 'portal_page_id' );
+
+	/**
+	 * One whole-number setting.
+	 *
+	 * @param string $key Setting key.
+	 * @return int
+	 */
+	public static function get_int( $key ) {
+		$all = self::all();
+		return isset( $all[ $key ] ) ? absint( $all[ $key ] ) : 0;
 	}
 
 	/**
 	 * All settings merged over the defaults.
 	 *
-	 * @return array<string,bool>
+	 * @return array<string,bool|int>
 	 */
 	public static function all() {
 		$stored = get_option( self::OPTION, array() );
@@ -40,7 +59,7 @@ final class GCO_PD_Settings {
 	 * One setting.
 	 *
 	 * @param string $key Setting key.
-	 * @return bool
+	 * @return bool On/off flags only; use get_int() for page ids.
 	 */
 	public static function get( $key ) {
 		$all = self::all();
@@ -55,7 +74,11 @@ final class GCO_PD_Settings {
 	public static function save_from_input( array $input ) {
 		$clean = array();
 		foreach ( array_keys( self::defaults() ) as $key ) {
-			$clean[ $key ] = ! empty( $input[ $key ] );
+			if ( in_array( $key, self::INT_KEYS, true ) ) {
+				$clean[ $key ] = isset( $input[ $key ] ) ? absint( wp_unslash( $input[ $key ] ) ) : 0;
+			} else {
+				$clean[ $key ] = ! empty( $input[ $key ] );
+			}
 		}
 		update_option( self::OPTION, $clean, true );
 	}
