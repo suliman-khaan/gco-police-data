@@ -314,6 +314,74 @@ final class GCO_PD_Repository {
 		return true;
 	}
 
+	/**
+	 * Coverage summary for a round: how many forces have a response and how many figures are "not provided".
+	 *
+	 * @param int $round_id Round id.
+	 * @return array{forces_with_data:int,total_forces:int,not_provided:int,figures:int}
+	 */
+	public static function get_round_summary( $round_id ) {
+		global $wpdb;
+		$resp   = GCO_PD_Install::table( 'responses' );
+		$forces = GCO_PD_Install::table( 'forces' );
+		$row    = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT COUNT(*) AS forces_with_data,
+					COALESCE(SUM((sg_grant_status = 'not_provided') + (fac_grant_status = 'not_provided') + (sg_renew_status = 'not_provided')
+						+ (fac_renew_status = 'not_provided') + (variation_status = 'not_provided')
+						+ (sg_holders_status = 'not_provided') + (fac_holders_status = 'not_provided')), 0) AS not_provided
+				 FROM {$resp} WHERE round_id = %d",
+				$round_id
+			)
+		);
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$forces} WHERE is_active = 1" );
+		return array(
+			'forces_with_data' => (int) ( $row->forces_with_data ?? 0 ),
+			'total_forces'     => $total,
+			'not_provided'     => (int) ( $row->not_provided ?? 0 ),
+			'figures'          => (int) ( $row->forces_with_data ?? 0 ) * 7,
+		);
+	}
+
+	/**
+	 * Finds a PDF in the media library by file name (as typed in the template's "PDF File Name" column).
+	 *
+	 * @param string $filename File name such as "DONE-Y_Derby_Police_11.06.26.pdf".
+	 * @return int Attachment id, or 0 when not found.
+	 */
+	public static function find_pdf_attachment( $filename ) {
+		global $wpdb;
+		$filename = wp_basename( (string) $filename );
+		if ( '' === $filename ) {
+			return 0;
+		}
+		$id = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT pm.post_id FROM {$wpdb->postmeta} pm
+				 INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+				 WHERE pm.meta_key = '_wp_attached_file'
+				   AND (pm.meta_value = %s OR pm.meta_value LIKE %s)
+				   AND p.post_type = 'attachment' AND p.post_mime_type = 'application/pdf'
+				 ORDER BY pm.post_id DESC LIMIT 1",
+				$filename,
+				'%/' . $wpdb->esc_like( $filename )
+			)
+		);
+		return $id;
+	}
+
+	/**
+	 * Sets a quarter's data date when it has none yet.
+	 *
+	 * @param int    $id        Quarter id.
+	 * @param string $data_date Y-m-d.
+	 */
+	public static function set_quarter_date_if_empty( $id, $data_date ) {
+		global $wpdb;
+		$table = GCO_PD_Install::table( 'npcc_quarters' );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET data_date = %s WHERE id = %d AND data_date IS NULL", $data_date, $id ) );
+	}
+
 	/* ----------------------------------------------------------------- FOI responses */
 
 	/**
