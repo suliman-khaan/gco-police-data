@@ -1,0 +1,41 @@
+/* GCO Police Data - admin screens only */
+.gco-pd .gco-pd-inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
+.gco-pd .gco-pd-table { margin-top: 12px; }
+.gco-pd .gco-pd-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.gco-pd .gco-pd-actions form { margin: 0; }
+
+.gco-pd-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: #dcdcde; color: #1d2327; }
+.gco-pd-badge--published, .gco-pd-badge--new { background: #d1f0dc; color: #0a5b27; }
+.gco-pd-badge--draft, .gco-pd-badge--unchanged { background: #e8e8ea; color: #50575e; }
+.gco-pd-badge--changed { background: #dbe8fb; color: #0b3d91; }
+.gco-pd-badge--error { background: #fbdcdc; color: #8a1313; }
+
+.gco-pd-help { max-width: 900px; background: #fff; border-left: 4px solid #064d49; padding: 4px 16px; margin: 12px 0; }
+.gco-pd-help li { margin: 6px 0; }
+
+.gco-pd-scroll { overflow-x: auto; max-width: 100%; border: 1px solid #c3c4c7; background: #fff; }
+.gco-pd-grid { border: 0; min-width: 1900px; }
+.gco-pd-grid th, .gco-pd-grid td { padding: 6px 8px; vertical-align: top; }
+.gco-pd-grid thead th { position: sticky; top: 32px; background: #f6f7f7; z-index: 2; white-space: nowrap; }
+.gco-pd-grid .gco-pd-sticky { position: sticky; left: 0; background: #f6f7f7; z-index: 1; min-width: 190px; border-right: 1px solid #dcdcde; }
+.gco-pd-grid thead .gco-pd-sticky { z-index: 3; }
+.gco-pd-grid tbody tr:nth-child(odd) td { background: #fcfcfc; }
+
+.gco-pd-grid input[type="number"] { width: 78px; display: block; margin-bottom: 4px; }
+.gco-pd-grid select { width: 108px; font-size: 12px; }
+.gco-pd-grid input[type="text"], .gco-pd-grid input[type="date"] { width: 150px; }
+.gco-pd-grid td:nth-last-child(3) input { width: 200px; }
+
+.gco-pd-grid .gco-pd-metric.is-bad { background: #fbdcdc !important; outline: 1px solid #d63638; outline-offset: -1px; }
+.gco-pd-grid .has-server-error > th { box-shadow: inset 4px 0 0 #d63638; }
+
+.gco-pd-pdf { min-width: 180px; }
+.gco-pd-pdf-name { display: block; font-size: 12px; word-break: break-all; margin-bottom: 4px; }
+
+.gco-pd-msg { min-width: 220px; }
+.gco-pd-error, .gco-pd-live-error { color: #8a1313; font-size: 12px; margin: 2px 0; }
+.gco-pd-warning { color: #7a5200; font-size: 12px; margin: 2px 0; }
+
+.gco-pd-savebar { position: sticky; top: 32px; z-index: 5; background: #f0f0f1; margin: 0; padding: 8px 0; }
+.gco-pd-counts { display: flex; gap: 8px; flex-wrap: wrap; }
+.gco-pd-state-error td { background: #fff5f5 !important; }
