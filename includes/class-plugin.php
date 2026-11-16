@@ -73,7 +73,8 @@ final class GCO_PD_Plugin {
 		if ( is_admin() ) {
 			GCO_PD_Admin::init();
 		}
-		// Shortcodes and cache hooks are wired up in later milestones.
+		GCO_PD_Shortcodes::init();
+		GCO_PD_WPBakery::init();
 	}
 
 	/**
