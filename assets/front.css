@@ -291,6 +291,22 @@
 .gco-pd-inspect__products { margin-top: 18px; }
 .gco-pd-freview { align-items: flex-start; }
 
+/* Force page: applications, backlog, service standards */
+.gco-pd-fapps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 4px; }
+.gco-pd-fapps__block { padding: 12px 14px; border: 1px solid var(--gco-line); border-radius: 8px; background: #fbfdfc; }
+.gco-pd-fapps__block .gco-pd-fsub { margin-top: 0; }
+.gco-pd-fapps__text { margin: 0 0 8px; font-size: .9rem; }
+.gco-pd-fapps__list { margin: 0; }
+.gco-pd-fapps__list > div { padding: 6px 0; border-top: 1px solid var(--gco-line); }
+.gco-pd-fapps__list > div:first-child { border-top: 0; }
+.gco-pd-fapps__list dt { font-size: .78rem; color: var(--gco-mute); }
+.gco-pd-fapps__list dd { margin: 0; font-size: 1.05rem; }
+.gco-pd-fapps__list .gco-pd-fchange { display: block; margin: 2px 0 0; font-size: .8rem; }
+.gco-pd-fapps__backlog { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--gco-line); border-radius: 8px; background: #fbfdfc; }
+.gco-pd-fapps__backlog .gco-pd-fsub { margin-top: 0; }
+.gco-pd-fshared { display: flex; gap: 8px; align-items: flex-start; background: #eaf1fd; color: #12306b; }
+.gco-pd-fshared .gco-pd-icon { width: 18px; height: 18px; margin-top: 2px; }
+
 @media (max-width: 1024px) {
 	.gco-pd-fgrid { grid-template-columns: minmax(0, 1fr); }
 	.gco-pd-fside { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; order: 2; }

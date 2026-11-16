@@ -123,10 +123,22 @@ final class GCO_PD_Repository {
 	}
 
 	/**
+	 * A shared-department group key: lower case, letters, numbers and dashes ("Warwickshire & West Mercia" => "warwickshire-west-mercia").
+	 *
+	 * @param mixed $group Raw name.
+	 * @return string
+	 */
+	public static function normalize_group( $group ) {
+		$group = strtolower( trim( (string) $group ) );
+		$group = str_replace( '&', ' ', $group );
+		return trim( preg_replace( '/[^a-z0-9]+/', '-', $group ), '-' );
+	}
+
+	/**
 	 * Updates editable force fields.
 	 *
 	 * @param int   $id   Force id.
-	 * @param array $data Any of name, aliases, page_id (0/null to unlink), is_active.
+	 * @param array $data Any of name, aliases, shared_group ('' for none), page_id (0/null to unlink), is_active.
 	 * @return true|WP_Error
 	 */
 	public static function update_force( $id, array $data ) {
@@ -152,6 +164,14 @@ final class GCO_PD_Repository {
 			}
 			$fields['aliases'] = '' === $aliases ? null : $aliases;
 			$formats[]         = '%s';
+		}
+		if ( array_key_exists( 'shared_group', $data ) ) {
+			$group = self::normalize_group( $data['shared_group'] );
+			if ( strlen( $group ) > 60 ) {
+				return new WP_Error( 'gco_pd_bad_group', 'The shared department name must be 60 characters or fewer.' );
+			}
+			$fields['shared_group'] = '' === $group ? null : $group;
+			$formats[]                 = '%s';
 		}
 		if ( array_key_exists( 'page_id', $data ) ) {
 			$page_id           = (int) $data['page_id'];

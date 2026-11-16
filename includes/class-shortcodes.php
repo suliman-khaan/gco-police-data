@@ -572,6 +572,28 @@ final class GCO_PD_Shortcodes {
 				case 'sla':
 					$cards[] = array( 'chart', $npcc ? GCO_PD_Format::percent( $npcc['pct'] ) : null, 'Completed within NPCC service level agreement (SLA)', 'Share of applications completed within 4 months of receipt; the NPCC aspiration is 80%. ' . $source );
 					break;
+				case 'outstanding':
+					$extra = $snapshot['foi']['extra']['outstanding'] ?? null;
+					if ( GCO_PD_Settings::get( 'show_outstanding' ) ) {
+						$cards[] = array(
+							'clock',
+							$extra && null !== $extra['sum'] ? GCO_PD_Format::number( $extra['sum'] ) : null,
+							'Applications outstanding',
+							$extra && $extra['n'] ? 'Awaiting a decision, from the latest FOI responses (' . GCO_PD_Format::forces_phrase( $extra['n_forces'], $extra['n'] ) . ' gave a figure). ' . ( $round ? 'FOI round ' . $round . '.' : '' ) : '',
+						);
+					}
+					break;
+				case 'standard':
+					$extra = $snapshot['foi']['extra']['standard_met'] ?? null;
+					if ( GCO_PD_Settings::get( 'show_standards' ) ) {
+						$cards[] = array(
+							'check',
+							$extra && null !== $extra['average'] ? rtrim( rtrim( number_format( $extra['average'], 1 ), '0' ), '.' ) . '%' : null,
+							'Met their own service standard',
+							$extra && $extra['n'] ? 'Average across ' . GCO_PD_Format::forces_phrase( $extra['n_forces'], $extra['n'] ) . '. Each force sets its own standard. ' . ( $round ? 'FOI round ' . $round . '.' : '' ) : '',
+						);
+					}
+					break;
 				case 'reporting':
 					$cards[] = array(
 						'shield',
@@ -594,7 +616,7 @@ final class GCO_PD_Shortcodes {
 						'calendar',
 						$foi && null !== $foi['average'] ? GCO_PD_Format::days( round( $foi['average'] ) ) : null,
 						'National average: ' . $label,
-						$foi && $foi['n'] ? 'Across ' . $foi['n'] . ' forces that gave a figure' : '',
+						$foi && $foi['n'] ? 'Across ' . GCO_PD_Format::forces_phrase( $foi['n_forces'] ?? $foi['n'], $foi['n'] ) . ' that gave a figure' : '',
 					);
 					break;
 			}
@@ -812,6 +834,7 @@ final class GCO_PD_Shortcodes {
 					'label' => GCO_PD_Format::METRIC_LABELS[ $metric ],
 					'text'  => GCO_PD_Format::days( round( $stat['average'] ) ),
 					'n'     => $stat['n'],
+					'n_forces' => $stat['n_forces'] ?? $stat['n'],
 				) : null;
 			}
 			$tabs[ $key ] = array(
@@ -1177,6 +1200,7 @@ final class GCO_PD_Shortcodes {
 					'average' => null === $average ? null : GCO_PD_Format::days( $average ),
 					'verdict' => GCO_PD_Format::versus_average( $data['value'], $average ),
 					'n'       => $stat['n'] ?? 0,
+					'n_forces' => $stat['n_forces'] ?? ( $stat['n'] ?? 0 ),
 				);
 			}
 		}

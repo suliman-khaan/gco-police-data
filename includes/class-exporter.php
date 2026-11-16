@@ -47,6 +47,19 @@ final class GCO_PD_Exporter {
 	}
 
 	/**
+	 * DECIMAL columns come back as "55.00"; export them as "55" (and "25.50" as "25.5"). Other values untouched.
+	 *
+	 * @param mixed $value Cell value.
+	 * @return mixed
+	 */
+	public static function plain_number( $value ) {
+		if ( is_string( $value ) && 1 === preg_match( '/^\d+\.\d+$/D', $value ) ) {
+			return rtrim( rtrim( $value, '0' ), '.' );
+		}
+		return $value;
+	}
+
+	/**
 	 * FOI Data CSV for the given rounds (all rounds when empty).
 	 *
 	 * @param int[] $round_ids Round ids.
@@ -73,19 +86,30 @@ final class GCO_PD_Exporter {
 				}
 			);
 			foreach ( $responses as $row ) {
-				$line = array(
-					$round->label,
-					$forces[ (int) $row->force_id ] ?? '',
-					$row->foi_ref,
-					$row->response_date,
-				);
-				foreach ( array( 'sg_grant_days', 'fac_grant_days', 'sg_renew_days', 'fac_renew_days', 'variation_days', 'sg_holders', 'fac_holders' ) as $column ) {
-					$status_column = ( 'sg_holders' === $column || 'fac_holders' === $column ) ? $column . '_status' : str_replace( '_days', '_status', $column );
-					$line[]        = $row->$column;
-					$line[]        = self::status_label( $row->$status_column );
+				// One cell per template header, in header order, so export and import always agree.
+				$line = array();
+				foreach ( array_keys( GCO_PD_Import_Parser::FOI_HEADERS ) as $field ) {
+					switch ( $field ) {
+						case 'round':
+							$line[] = $round->label;
+							break;
+						case 'force':
+							$line[] = $forces[ (int) $row->force_id ] ?? '';
+							break;
+						case 'pdf_file':
+							$line[] = $row->pdf_id ? wp_basename( (string) get_attached_file( (int) $row->pdf_id ) ) : '';
+							break;
+						case 'backlog_unit':
+							$line[] = GCO_PD_Validator::UNIT_PERCENT === $row->backlog_unit ? 'Percentage' : 'Count';
+							break;
+						default:
+							if ( '_status' === substr( $field, -7 ) ) {
+								$line[] = self::status_label( $row->$field );
+							} else {
+								$line[] = ( isset( GCO_PD_Validator::BACKLOG_BANDS[ $field ] ) || 'standard_met_pct' === $field ) ? self::plain_number( $row->$field ?? null ) : ( $row->$field ?? null );
+							}
+					}
 				}
-				$line[] = $row->notes;
-				$line[] = $row->pdf_id ? wp_basename( (string) get_attached_file( (int) $row->pdf_id ) ) : '';
 				$lines[] = $line;
 			}
 		}
