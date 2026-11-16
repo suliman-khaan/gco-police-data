@@ -37,6 +37,7 @@ final class GCO_PD_Shortcodes {
 		'gco_force_context'        => 'force_context',
 		'gco_force_updated'        => 'force_updated',
 		'gco_police_faq_schema'    => 'faq_schema',
+		'gco_force_page'           => 'force_page',
 	);
 
 	/**
@@ -44,7 +45,7 @@ final class GCO_PD_Shortcodes {
 	 *
 	 * @var string[]
 	 */
-	const INTERACTIVE = array( 'gco_police_hero', 'gco_police_search', 'gco_police_leaderboard', 'gco_police_waiting_table', 'gco_police_az' );
+	const INTERACTIVE = array( 'gco_police_hero', 'gco_police_search', 'gco_police_leaderboard', 'gco_police_waiting_table', 'gco_police_az', 'gco_force_page' );
 
 	/**
 	 * Waiting-time metrics shown on force pages and the portal.
@@ -258,15 +259,17 @@ final class GCO_PD_Shortcodes {
 	 * @param array  $vars Variables.
 	 * @return string
 	 */
-	private static function template( $name, array $vars ) {
-		$path = locate_template( array( 'gco-police-data/' . $name . '.php' ) );
-		if ( ! $path ) {
-			$path = GCO_PD_DIR . 'templates/' . $name . '.php';
+	public static function template( $name, array $vars ) {
+		$gco_pd_tpl_path = locate_template( array( 'gco-police-data/' . $name . '.php' ) );
+		if ( ! $gco_pd_tpl_path ) {
+			$gco_pd_tpl_path = GCO_PD_DIR . 'templates/' . $name . '.php';
 		}
+		unset( $name );
 		ob_start();
+		// Templates may use any variable name, including $name and $vars.
 		// phpcs:ignore WordPress.PHP.DontExtract.extract_extract
-		extract( $vars, EXTR_SKIP );
-		include $path;
+		extract( $vars, EXTR_OVERWRITE );
+		include $gco_pd_tpl_path;
 		return (string) ob_get_clean();
 	}
 
@@ -275,7 +278,7 @@ final class GCO_PD_Shortcodes {
 	 *
 	 * @return array
 	 */
-	private static function snapshot() {
+	public static function snapshot() {
 		return GCO_PD_Cache::get_snapshot();
 	}
 
@@ -338,7 +341,7 @@ final class GCO_PD_Shortcodes {
 	 * @param array $atts Shortcode attributes.
 	 * @return array|null Snapshot force.
 	 */
-	private static function resolve_force( array $atts ) {
+	public static function resolve_force( array $atts ) {
 		$snapshot = self::snapshot();
 		$wanted   = isset( $atts['force'] ) ? sanitize_title( $atts['force'] ) : 'auto';
 
@@ -362,7 +365,7 @@ final class GCO_PD_Shortcodes {
 	 *
 	 * @return string
 	 */
-	private static function no_force() {
+	public static function no_force() {
 		if ( current_user_can( GCO_PD_Install::CAPABILITY ) ) {
 			return '<p class="gco-pd-empty">Editors only: no police force is linked to this page. Link it under Police Data &rarr; Forces, or use force="slug" in the shortcode.</p>';
 		}
@@ -376,7 +379,7 @@ final class GCO_PD_Shortcodes {
 	 * @param bool       $is_average Waiting time (true) or holder count (false).
 	 * @return array{text:?string,basis:string,status:string}
 	 */
-	private static function figure( $metric, $is_average = true ) {
+	public static function figure( $metric, $is_average = true ) {
 		if ( ! $metric || null === $metric['value'] ) {
 			return array(
 				'text'   => null,
@@ -1253,6 +1256,16 @@ final class GCO_PD_Shortcodes {
 				'pdf'     => $pdf,
 			)
 		);
+	}
+
+	/**
+	 * [gco_force_page force="auto" part="all|hero|body"]
+	 *
+	 * @param array $atts Attributes.
+	 * @return string
+	 */
+	public static function sc_force_page( array $atts ) {
+		return GCO_PD_Force_Page::render( $atts );
 	}
 
 	/* ------------------------------------------------------------------------- FAQs */

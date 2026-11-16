@@ -109,19 +109,22 @@ Each milestone = one or more feature branches → merged to `development` → ta
 | 12 | Related Guides and Articles | Reuse `[gco_police_guides]`; IDs from Settings, overridable per force |
 
 **Tasks**
-- [ ] **Data:** new table `gco_force_profiles` (one row per force: text fields, attachment IDs, `quotes` and `faqs` as JSON, `updated_at`). The `gco_forces` table stays lean, and `DB_VERSION` goes to 3.
-- [ ] **Admin:** Police Data → Forces → *Edit* gets a tabbed profile form (Hero, Contact, GP Medical, Area, Applicant reports, FAQs, Related guides). It has media pickers, add/remove/reorder rows for quotes and FAQs, a cap + nonce check, sanitising per field type, and a "View page" link. Saving purges that force page's cache.
-- [ ] **Settings:** default hero photo, default GP medical text, the shared security-inspection block, and default related-guide IDs.
-- [ ] **Render:** `[gco_force_page force="auto"]` builds the layout from parts in `templates/force-page/*.php`, which a theme can override like the other templates. Each part hides itself when it has no data, so there are no empty boxes. The existing small `gco_force_*` shortcodes stay for one-off use.
-- [ ] **Assets:** force-page CSS added to `front.css` (sidebar layout, quote cards, bar chart, jump nav). Mobile layout: the sidebar moves below the main content.
-- [ ] **Linking:** add the `hampshire-isle-of-wight` slug variant. 20 of 21 existing pages auto-link today; Hampshire misses because its page slug drops "and". Forces screen gets a "no page linked" filter.
-- [ ] **Migration tool:** WP-CLI `wp gco-pd force-pages migrate [--force=slug] [--dry-run]`.
-  - Backs up each page's current content to a revision and to post meta `_gco_pd_pre_m6_content`.
-  - Pulls what it can from the existing WPBakery text into the profile fields (contact block, area paragraph, FAQ toggles) and prints a per-page report of what was found and what needs a manual check.
-  - Swaps the content to `[gco_force_page]` only without `--dry-run`. `wp gco-pd force-pages restore --force=slug` puts the old content back.
-- [ ] **Rollout:** migrate **one page (Derbyshire)** on live as a draft copy → client sign-off → the remaining 20 → review each against its old version.
+- [x] **Data:** table `gco_force_profiles` (one JSON document per force, so new fields need no schema change); `DB_VERSION` 3. Field list, sanitising and completeness in `GCO_PD_Profile`.
+- [x] **Admin:** Police Data → **Force Pages** lists every force (page, template/old layout, what is filled) with an **Edit content** screen in 7 tabs. It has media pickers, add/remove/reorder rows (providers, quotes, FAQs), an unsaved-changes warning, a cap + nonce check, per-type sanitising (`wp_kses` for rich text), and View/Edit page links. Saving purges that page's cache.
+- [x] **Shared defaults** (Force Pages → Shared defaults): default hero photo, tagline, GP text + checklist + link, the security-inspection block (text, image, products, button), related-guide IDs and the disclaimer. `{force}` is replaced per page.
+- [x] **Render:** `[gco_force_page force="auto" part="all|hero|body"]` (also a WPBakery element) builds the page from `templates/force-page/*.php` (theme-overridable). Every section hides when empty; the H1 and breadcrumb use the page title, so SEO titles are unchanged.
+- [x] **Data sections:** waiting-times table with change, FOI ref + date; bar chart of the last 4 rounds + change box; full history table; NPCC overview cards; holders sentence that updates with each round.
+- [x] **Assets:** force-page CSS in `front.css` (jump nav with scroll highlight, sidebar layout, quote cards, bar chart). Below 1024px the sidebar moves under the main content; no horizontal scroll at 375px.
+- [x] **Linking:** Hampshire slug variant, and the linker now also picks up forces saved with `page_id = 0`. All 21 existing pages link.
+- [x] **Migration tool:** `wp gco-pd force-pages status | migrate [--force=slug|--all] [--apply] [--overwrite] [--keep-content] | restore --force=slug`.
+  - Dry run unless `--apply`. Before the first change the old content and its WPBakery CSS are kept in `_gco_pd_pre_m6_content` / `_gco_pd_pre_m6_css` (plus a WordPress revision); `restore` puts both back.
+  - Dry run on all 21 pages (local copy): every section recognised (contact, area, applicant checklist, GP providers, quotes, FAQs, review dates); waiting times, national context and guides are skipped because the data now generates them.
+  - The shared inspection text, products and disclaimer are taken from the first migrated page, with every name variant replaced by `{force}`.
+- [x] **Pilot on the local copy:** Derbyshire migrated and checked at desktop and phone width.
+- [ ] **Rollout on live:** install the release, run `migrate --force=derbyshire` (dry run, then `--apply`) → client sign-off → `migrate --all --apply` → review each page against its backup.
+- [ ] **Shared defaults on live** (needs the media library): default hero photo, inspection image, related-guide IDs, GP "more about" link.
 - **Out of scope (per the quote):** the ~22 forces that have no page today. The template and data cover them, so the client only needs to create a page, add `[gco_force_page]` and fill the profile fields. Creating and writing those pages is quoted separately if asked.
-- [ ] **Tests:** unit tests for profile sanitising/serialising, the bar-chart SVG and the migration extractor (fixtures: 2–3 real page contents).
+- [x] **Tests:** extractor (8 tests on a page in the real layout), bar chart (2). All 105 unit tests pass. Sanitising checked against the live code (scripts, `javascript:` links, bad emails/dates stripped; save is idempotent).
 - **Done when:** all 21 existing pages render the template with their original text carried into fields (nothing lost, the report reviewed); each page's sections hide cleanly when empty; the portal, search and A–Z link to every force with a page; and the client has signed off Derbyshire before the batch.
 
 ### M7 — Real data, QA & launch · `release/1.0.0` · 2 days
@@ -181,4 +184,5 @@ Testing environment: the staging copy has no `uploads/`, so images (hero photos,
 8. ~~The 22 forces without a page: create them now?~~ Decided: out of scope, the client adds them (quote: "adding the remaining forces is just the written content"). Note the quote says 20 existing pages, but 21 exist; confirm Hampshire is included.
 9. *(new, M6)* Applicant quotes: where do they come from, and do we have permission to publish them with a source name?
 10. *(new, M6)* Police crests in the hero: confirm we may use them. Crests are protected marks, so the fallback is no crest.
-11. *(new, M6)* GP medical text: one shared text for all forces, or per-force wording?
+11. *(new, M6)* GP medical text: one shared text for all forces, or per-force wording? (Built to support both: each page keeps its own text, with the shared text as fallback.)
+12. *(new, M6)* **Content to check:** the Derbyshire page lists a Stafford ST18 address (looks like Staffordshire's). The "about this area" texts quote holder numbers "as of June 2026" that will go stale; the template already adds an up-to-date holders sentence, so the client may want to remove the numbers from the text.

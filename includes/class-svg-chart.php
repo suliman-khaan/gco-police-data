@@ -190,4 +190,84 @@ final class GCO_PD_SVG_Chart {
 
 		return $svg . $legend . '</svg>';
 	}
+
+	/**
+	 * Horizontal bar chart, one bar per labelled value (e.g. one per FOI round). The last bar is
+	 * highlighted as the latest figure; a missing value shows "Not provided" instead of a zero bar.
+	 *
+	 * @param array<string,int|null> $items Label => value (null = missing), oldest first.
+	 * @param array                  $args  title, description, unit (e.g. "days"), axis_label.
+	 * @return string SVG markup, or an empty string when no value is present.
+	 */
+	public static function bars( array $items, array $args = array() ) {
+		$values = array_filter(
+			$items,
+			static function ( $value ) {
+				return null !== $value;
+			}
+		);
+		if ( ! $values ) {
+			return '';
+		}
+
+		$title = $args['title'] ?? 'Comparison';
+		$desc  = $args['description'] ?? '';
+		$unit  = $args['unit'] ?? '';
+		$axis  = $args['axis_label'] ?? '';
+		$uid   = 'gco-bars-' . substr( md5( $title . implode( '|', array_keys( $items ) ) ), 0, 8 );
+
+		list( $axis_max, $step ) = self::nice_axis( max( $values ) );
+
+		$left   = 150;
+		$right  = 70;
+		$top    = 8;
+		$row_h  = 38;
+		$bar_h  = 22;
+		$count  = count( $items );
+		$plot_w = self::WIDTH - $left - $right;
+		$plot_h = $count * $row_h;
+		$height = $top + $plot_h + ( '' !== $axis ? 46 : 30 );
+
+		$x = static function ( $value ) use ( $left, $plot_w, $axis_max ) {
+			return $left + ( $plot_w * $value / $axis_max );
+		};
+
+		$svg  = sprintf(
+			'<svg class="gco-pd-chart gco-pd-chart--bars" viewBox="0 0 %1$d %2$d" role="img" aria-labelledby="%3$s-t %3$s-d" xmlns="http://www.w3.org/2000/svg">',
+			self::WIDTH,
+			$height,
+			self::e( $uid )
+		);
+		$svg .= '<title id="' . self::e( $uid ) . '-t">' . self::e( $title ) . '</title>';
+		$svg .= '<desc id="' . self::e( $uid ) . '-d">' . self::e( $desc ) . '</desc>';
+
+		// Vertical gridlines and x labels.
+		$base = $top + $plot_h;
+		for ( $tick = 0; $tick <= $axis_max; $tick += $step ) {
+			$tx   = round( $x( $tick ), 1 );
+			$svg .= '<line x1="' . $tx . '" y1="' . $top . '" x2="' . $tx . '" y2="' . $base . '" stroke="#e1e6e5" stroke-width="1"/>';
+			$svg .= '<text x="' . $tx . '" y="' . ( $base + 18 ) . '" text-anchor="middle" font-size="12" fill="#5b6765">' . (int) $tick . '</text>';
+		}
+		if ( '' !== $axis ) {
+			$svg .= '<text x="' . round( $left + $plot_w / 2, 1 ) . '" y="' . ( $base + 38 ) . '" text-anchor="middle" font-size="12" fill="#5b6765">' . self::e( $axis ) . '</text>';
+		}
+
+		$i = 0;
+		foreach ( $items as $label => $value ) {
+			$latest = $i === $count - 1;
+			$cy     = $top + $i * $row_h + $row_h / 2;
+			$svg   .= '<text x="' . ( $left - 12 ) . '" y="' . round( $cy + 4, 1 ) . '" text-anchor="end" font-size="13" fill="#1c2b29"' . ( $latest ? ' font-weight="600"' : '' ) . '>' . self::e( $label ) . '</text>';
+			if ( null === $value ) {
+				$svg .= '<text x="' . ( $left + 8 ) . '" y="' . round( $cy + 4, 1 ) . '" font-size="13" font-style="italic" fill="#6b7775">Not provided</text>';
+			} else {
+				$w    = max( 2, round( $x( $value ) - $left, 1 ) );
+				$text = trim( $value . ' ' . $unit );
+				$svg .= '<rect x="' . $left . '" y="' . round( $cy - $bar_h / 2, 1 ) . '" width="' . $w . '" height="' . $bar_h . '" rx="3" fill="' . ( $latest ? '#0f6b3f' : '#8fd0a4' ) . '"><title>' . self::e( $label . ': ' . $text ) . '</title></rect>';
+				$svg .= '<text x="' . round( $left + $w + 8, 1 ) . '" y="' . round( $cy + 4, 1 ) . '" font-size="13" font-weight="600" fill="#1c2b29">' . self::e( $text ) . '</text>';
+			}
+			++$i;
+		}
+
+		return $svg . '</svg>';
+	}
 }

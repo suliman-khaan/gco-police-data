@@ -22,6 +22,8 @@ final class GCO_PD_Admin {
 	const SLUG_IMPORT   = 'gco-pd-import';
 	const SLUG_FORCES   = 'gco-pd-forces';
 	const SLUG_SETTINGS = 'gco-pd-settings';
+	const SLUG_PAGES    = 'gco-pd-force-pages';
+	const SLUG_PROFILE  = 'gco-pd-force-profile';
 
 	/**
 	 * Handlers: action name => method.
@@ -37,6 +39,8 @@ final class GCO_PD_Admin {
 		'gco_pd_quarter_status' => 'handle_quarter_status',
 		'gco_pd_delete_quarter' => 'handle_delete_quarter',
 		'gco_pd_save_forces'    => 'handle_save_forces',
+		'gco_pd_save_profile'   => 'handle_save_profile',
+		'gco_pd_save_shared'    => 'handle_save_shared',
 		'gco_pd_import_upload'  => 'handle_import_upload',
 		'gco_pd_import_commit'  => 'handle_import_commit',
 		'gco_pd_import_cancel'  => 'handle_import_cancel',
@@ -68,6 +72,9 @@ final class GCO_PD_Admin {
 		add_submenu_page( self::SLUG_ROUNDS, 'NPCC Quarters', 'NPCC Quarters', $cap, self::SLUG_QUARTERS, array( __CLASS__, 'page_quarters' ) );
 		add_submenu_page( self::SLUG_ROUNDS, 'Import', 'Import', $cap, self::SLUG_IMPORT, array( __CLASS__, 'page_import' ) );
 		add_submenu_page( self::SLUG_ROUNDS, 'Forces', 'Forces', $cap, self::SLUG_FORCES, array( __CLASS__, 'page_forces' ) );
+		add_submenu_page( self::SLUG_ROUNDS, 'Force Pages', 'Force Pages', $cap, self::SLUG_PAGES, array( __CLASS__, 'page_force_pages' ) );
+		add_submenu_page( self::SLUG_ROUNDS, 'Edit force page', 'Edit force page', $cap, self::SLUG_PROFILE, array( __CLASS__, 'page_profile' ) );
+		remove_submenu_page( self::SLUG_ROUNDS, self::SLUG_PROFILE );
 		add_submenu_page( self::SLUG_ROUNDS, 'Settings', 'Settings', $cap, self::SLUG_SETTINGS, array( __CLASS__, 'page_settings' ) );
 		// The round editor is reachable by link only; it stays out of the menu.
 		add_submenu_page( self::SLUG_ROUNDS, 'Edit round', 'Edit round', $cap, self::SLUG_ROUND, array( __CLASS__, 'page_round' ) );
@@ -83,6 +90,10 @@ final class GCO_PD_Admin {
 			return;
 		}
 		wp_enqueue_style( 'gco-pd-admin', GCO_PD_URL . 'assets/admin.css', array(), GCO_PD_VERSION );
+		if ( self::SLUG_PROFILE === $page || self::SLUG_PAGES === $page ) {
+			wp_enqueue_media();
+			wp_enqueue_script( 'gco-pd-profile', GCO_PD_URL . 'assets/admin-profile.js', array(), GCO_PD_VERSION, true );
+		}
 		if ( self::SLUG_ROUND === $page ) {
 			wp_enqueue_media();
 			wp_enqueue_script( 'gco-pd-admin', GCO_PD_URL . 'assets/admin.js', array(), GCO_PD_VERSION, true );
@@ -145,7 +156,7 @@ final class GCO_PD_Admin {
 		$key     = 'gco_pd_notices_' . get_current_user_id();
 		$notices = get_transient( $key );
 		delete_transient( $key );
-		foreach ( (array) $notices as $notice ) {
+		foreach ( is_array( $notices ) ? $notices : array() as $notice ) {
 			printf( '<div class="notice notice-%s"><p>%s</p></div>', esc_attr( $notice[0] ), esc_html( $notice[1] ) );
 		}
 	}
@@ -718,5 +729,91 @@ final class GCO_PD_Admin {
 		header( 'X-Content-Type-Options: nosniff' );
 		echo $csv; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV, formula-neutralised by GCO_PD_Exporter.
 		exit;
+	}
+
+	/* ------------------------------------------------------------- Force pages */
+
+	/**
+	 * Force Pages: every force with its page, template status and profile completeness, plus the
+	 * shared defaults used on every force page.
+	 */
+	public static function page_force_pages() {
+		self::require_cap();
+		$forces   = GCO_PD_Repository::get_forces();
+		$profiles = GCO_PD_Profile::all();
+		$rows     = array();
+		foreach ( $forces as $force ) {
+			$page_id = (int) $force->page_id;
+			$content = $page_id ? (string) get_post_field( 'post_content', $page_id ) : '';
+			$profile = $profiles[ (int) $force->id ] ?? GCO_PD_Profile::empty_profile();
+			$rows[]  = array(
+				'force'    => $force,
+				'page_id'  => $page_id,
+				'status'   => $page_id ? get_post_status( $page_id ) : '',
+				'template' => $page_id && has_shortcode( $content, 'gco_force_page' ),
+				'filled'   => GCO_PD_Profile::completeness( $profile ),
+				'updated'  => $profile['_updated_at'] ?? '',
+			);
+		}
+		self::render(
+			'force-pages',
+			array(
+				'rows'   => $rows,
+				'shared' => GCO_PD_Profile::shared(),
+				'fields' => GCO_PD_Profile::shared_fields(),
+			)
+		);
+	}
+
+	/**
+	 * Tabbed editor for one force's page content.
+	 */
+	public static function page_profile() {
+		self::require_cap();
+		$force_id = isset( $_GET['force_id'] ) ? absint( $_GET['force_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$force    = $force_id ? GCO_PD_Repository::get_force( $force_id ) : null;
+		if ( ! $force ) {
+			self::notice( 'error', 'Choose a force to edit.' );
+			self::render( 'force-pages-missing' );
+			return;
+		}
+		self::render(
+			'profile-edit',
+			array(
+				'force'   => $force,
+				'profile' => GCO_PD_Profile::get( $force_id ),
+				'fields'  => GCO_PD_Profile::fields(),
+				'tabs'    => GCO_PD_Profile::tabs(),
+				'shared'  => GCO_PD_Profile::shared(),
+			)
+		);
+	}
+
+	/**
+	 * Saves one force's page content.
+	 */
+	public static function handle_save_profile() {
+		self::guard( 'gco_pd_save_profile' );
+		$force_id = self::post_int( 'force_id' );
+		$input    = isset( $_POST['profile'] ) && is_array( $_POST['profile'] ) ? wp_unslash( $_POST['profile'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- GCO_PD_Profile::sanitize().
+		$result   = GCO_PD_Profile::save( $force_id, $input );
+		if ( is_wp_error( $result ) ) {
+			self::notice( 'error', $result->get_error_message() );
+		} else {
+			self::notice( 'success', 'Force page saved.' );
+		}
+		$tab = sanitize_key( self::post_text( 'tab' ) );
+		self::go( self::SLUG_PROFILE, array_filter( array( 'force_id' => $force_id, 'tab' => $tab ) ) );
+	}
+
+	/**
+	 * Saves the shared force page defaults.
+	 */
+	public static function handle_save_shared() {
+		self::guard( 'gco_pd_save_shared' );
+		$input = isset( $_POST['shared'] ) && is_array( $_POST['shared'] ) ? wp_unslash( $_POST['shared'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- GCO_PD_Profile::sanitize().
+		GCO_PD_Profile::save_shared( $input );
+		self::notice( 'success', 'Shared force page defaults saved.' );
+		self::go( self::SLUG_PAGES, array( 'view' => 'shared' ) );
 	}
 }
