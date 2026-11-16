@@ -33,6 +33,7 @@ final class GCO_PD_Shortcodes {
 		'gco_force_trend'          => 'force_trend',
 		'gco_force_context'        => 'force_context',
 		'gco_force_updated'        => 'force_updated',
+		'gco_police_faq_schema'    => 'faq_schema',
 	);
 
 	/**
@@ -81,7 +82,7 @@ final class GCO_PD_Shortcodes {
 			add_shortcode(
 				$tag,
 				static function ( $atts, $content, $shortcode_tag ) use ( $method ) {
-					return GCO_PD_Shortcodes::run( $method, $shortcode_tag, is_array( $atts ) ? $atts : array() );
+					return GCO_PD_Shortcodes::run( $method, $shortcode_tag, is_array( $atts ) ? $atts : array(), (string) $content );
 				}
 			);
 		}
@@ -138,14 +139,18 @@ final class GCO_PD_Shortcodes {
 	/**
 	 * Entry point for every shortcode.
 	 *
-	 * @param string $method Method suffix.
-	 * @param string $tag    Shortcode tag.
-	 * @param array  $atts   Attributes.
+	 * @param string $method  Method suffix.
+	 * @param string $tag     Shortcode tag.
+	 * @param array  $atts    Attributes.
+	 * @param string $content Enclosed content (unused by most shortcodes; '' is passed for self-closing tags).
 	 * @return string
 	 */
-	public static function run( $method, $tag, array $atts ) {
+	public static function run( $method, $tag, array $atts, $content = '' ) {
 		self::enqueue( in_array( $tag, self::INTERACTIVE, true ) );
-		$html = (string) call_user_func( array( __CLASS__, 'sc_' . $method ), $atts );
+		$callback = array( __CLASS__, 'sc_' . $method );
+		$html     = 'faq_schema' === $method
+			? (string) call_user_func( $callback, $atts, $content )
+			: (string) call_user_func( $callback, $atts );
 		return $html;
 	}
 
@@ -903,5 +908,51 @@ final class GCO_PD_Shortcodes {
 				'pdf'     => $pdf,
 			)
 		);
+	}
+
+	/* ------------------------------------------------------------------------- FAQs */
+
+	/**
+	 * [gco_police_faq_schema]...one or more [vc_toggle title="Question"]Answer[/vc_toggle]...[/gco_police_faq_schema]
+	 *
+	 * Renders the enclosed toggles as usual and adds a FAQPage JSON-LD block built from their
+	 * question/answer pairs. Scoped to this one wrapper (not every `vc_toggle` on the site) so it never
+	 * duplicates schema the SEO plugin already emits for its own FAQ block elsewhere.
+	 *
+	 * @param array  $atts    Attributes (unused).
+	 * @param string $content Enclosed WPBakery markup.
+	 * @return string
+	 */
+	public static function sc_faq_schema( array $atts, $content ) {
+		unset( $atts );
+		$rendered = do_shortcode( $content );
+		$pairs    = self::extract_faq_pairs( $content );
+		if ( ! $pairs ) {
+			return $rendered;
+		}
+		return $rendered . self::template( 'portal-faq-schema', array( 'pairs' => $pairs ) );
+	}
+
+	/**
+	 * Pulls {question, answer} pairs out of nested `vc_toggle` shortcodes.
+	 *
+	 * @param string $content Raw enclosed shortcode markup.
+	 * @return array{question:string,answer:string}[]
+	 */
+	private static function extract_faq_pairs( $content ) {
+		$pairs = array();
+		if ( ! preg_match_all( '/' . get_shortcode_regex( array( 'vc_toggle' ) ) . '/s', $content, $matches ) ) {
+			return $pairs;
+		}
+		foreach ( $matches[0] as $i => $full ) {
+			$shortcode_atts = shortcode_parse_atts( $matches[3][ $i ] );
+			$question       = is_array( $shortcode_atts ) && ! empty( $shortcode_atts['title'] ) ? trim( (string) $shortcode_atts['title'] ) : '';
+			$answer         = trim( wp_strip_all_tags( (string) $matches[5][ $i ] ) );
+			$answer         = trim( preg_replace( '/\s+/', ' ', $answer ) );
+			if ( '' !== $question && '' !== $answer ) {
+				$pairs[] = array( 'question' => $question, 'answer' => $answer );
+			}
+		}
+		return $pairs;
 	}
 }

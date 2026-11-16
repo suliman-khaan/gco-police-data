@@ -20,6 +20,7 @@ final class GCO_PD_WPBakery {
 	 */
 	public static function init() {
 		add_action( 'vc_before_init', array( __CLASS__, 'map' ) );
+		add_action( 'vc_before_init', array( __CLASS__, 'map_containers' ) );
 	}
 
 	/**
@@ -166,6 +167,27 @@ final class GCO_PD_WPBakery {
 				'description' => 'Last updated and source line',
 				'params'      => array( self::force() ),
 			),
+		);
+	}
+
+	/**
+	 * Separately registered: a container so FAQ toggles dropped inside it get FAQPage schema.
+	 */
+	public static function map_containers() {
+		if ( ! function_exists( 'vc_map' ) ) {
+			return;
+		}
+		vc_map(
+			array(
+				'name'           => 'Police FAQs (with schema)',
+				'base'           => 'gco_police_faq_schema',
+				'description'    => 'Wrap Toggle elements with FAQ questions/answers to add FAQPage structured data',
+				'category'       => self::CATEGORY,
+				'params'         => array(),
+				'as_parent'      => array( 'only' => 'vc_toggle' ),
+				'content_element' => true,
+				'is_container'   => true,
+			)
 		);
 	}
 }
