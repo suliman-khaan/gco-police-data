@@ -1,0 +1,29 @@
+#!/bin/sh
+# Blocks any commit on `main` whose index contains a path listed in .release-exclude.
+# Installed by dev/scripts/install-hooks.sh (copied into .git/hooks so it survives branch switches).
+
+branch=$(git symbolic-ref --short -q HEAD)
+[ "$branch" = "main" ] || exit 0
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+# The list is not on main, so read it from the development branch (fall back to the worktree copy).
+list=$(git show development:.release-exclude 2>/dev/null) || list=$(cat .release-exclude 2>/dev/null)
+if [ -z "$list" ]; then
+	echo "pre-commit: could not read .release-exclude from 'development'; refusing to commit on main." >&2
+	exit 1
+fi
+
+bad=$(printf '%s\n' "$list" | while IFS= read -r p; do
+	p=$(printf '%s' "$p" | tr -d '\r')
+	case "$p" in ''|'#'*) continue ;; esac
+	git ls-files --cached -- "${p%/}"
+done | sort -u)
+
+if [ -n "$bad" ]; then
+	echo "pre-commit: these development-only files must not be committed on main:" >&2
+	printf '  %s\n' $bad >&2
+	echo "Release with dev/scripts/release.sh instead of committing/merging on main directly." >&2
+	exit 1
+fi
+exit 0

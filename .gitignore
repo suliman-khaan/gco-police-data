@@ -1,0 +1,24 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.idea/
+.vscode/
+
+# Dependencies & build output
+/vendor/
+/node_modules/
+/build/
+/dist/
+*.zip
+
+# Local-only tool settings (never committed on any branch)
+.claude/settings.local.json
+.env
+.env.*
+
+# Logs / caches
+*.log
+.phpunit.result.cache
+.phpcs-cache
