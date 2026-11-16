@@ -90,7 +90,7 @@ $gco_pd_help  = 'Actual average: the force gave an exact average from its record
 					<?php
 					$gco_pd_parts = array();
 					foreach ( $tab['avgs'] as $avg ) {
-						$gco_pd_parts[] = sprintf( '%1$s %2$s (%3$d %4$s)', strtolower( $avg['label'] ), $avg['text'], $avg['n'], 1 === (int) $avg['n'] ? 'force' : 'forces' );
+						$gco_pd_parts[] = sprintf( '%1$s %2$s (%3$s)', strtolower( $avg['label'] ), $avg['text'], GCO_PD_Format::forces_phrase( $avg['n_forces'] ?? $avg['n'], $avg['n'] ) );
 					}
 					echo esc_html( 'National average: ' . implode( '; ', $gco_pd_parts ) . '.' );
 					?>

@@ -73,3 +73,12 @@
 .gco-pd-guide h3 { margin: 18px 0 4px; }
 .gco-pd-guide li { margin: 6px 0; }
 .gco-pd-guide th { width: 28%; text-align: left; vertical-align: top; }
+
+/* Round editor: second tab, shared marker */
+.gco-pd-gridtabs { margin-top: 8px; }
+.gco-pd-tabflag { display: inline-block; min-width: 16px; padding: 0 4px; margin-left: 4px; border-radius: 8px; background: #d63638; color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
+.gco-pd-grid--extras { min-width: 2300px; }
+.gco-pd-grid--extras input[type="number"] { width: 92px; }
+.gco-pd-grid--extras td:nth-child(4) input, .gco-pd-grid--extras td:nth-last-child(4) input { width: 190px; }
+.gco-pd-grid--extras select { width: 110px; }
+.gco-pd-shared { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 8px; background: #dbe8fb; color: #0b3d91; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; vertical-align: middle; }

@@ -28,6 +28,29 @@ defined( 'ABSPATH' ) || exit;
 			</td>
 		</tr>
 		<tr>
+			<th scope="row">Extra FOI figures</th>
+			<td>
+				<fieldset>
+					<legend class="screen-reader-text">Show on the website</legend>
+					<?php
+					$gco_switches = array(
+						'show_volumes'     => 'Applications received and completed',
+						'show_outstanding' => 'Outstanding applications and the oldest outstanding',
+						'show_backlog'     => 'Backlog age (how long outstanding applications have waited)',
+						'show_standards'   => 'Service standards and how often they were met',
+					);
+					foreach ( $gco_switches as $gco_key => $gco_text ) :
+						?>
+						<label style="display:block;margin:4px 0">
+							<input type="checkbox" name="<?php echo esc_attr( $gco_key ); ?>" value="1" <?php checked( $settings[ $gco_key ] ); ?>>
+							<?php echo esc_html( $gco_text ); ?>
+						</label>
+					<?php endforeach; ?>
+				</fieldset>
+				<p class="description">Show these on the force pages (and the national totals on the portal). All off by default: the figures are collected and stored from the first round that includes them, but nothing is shown to visitors until you tick it. A backlog is sensitive, so decide before switching it on.</p>
+			</td>
+		</tr>
+		<tr>
 			<th scope="row">FOI letters</th>
 			<td>
 				<label>
