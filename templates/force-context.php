@@ -29,7 +29,7 @@ defined( 'ABSPATH' ) || exit;
 					<tr>
 						<th scope="row"><?php echo esc_html( $row['label'] ); ?></th>
 						<td><?php echo null !== $row['force'] ? '<strong>' . esc_html( $row['force'] ) . '</strong>' : '<span class="gco-pd-na">Not provided</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td>
-						<td><?php echo null !== $row['average'] ? esc_html( $row['average'] ) . ' <span class="gco-pd-note">(' . esc_html( (string) $row['n'] ) . ' forces)</span>' : '<span class="gco-pd-na">Not available</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td>
+						<td><?php echo null !== $row['average'] ? esc_html( $row['average'] ) . ' <span class="gco-pd-note">(' . esc_html( GCO_PD_Format::forces_phrase( $row['n_forces'] ?? $row['n'], $row['n'] ) ) . ')</span>' : '<span class="gco-pd-na">Not available</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td>
 						<td><?php echo '' !== $row['verdict'] ? esc_html( $row['verdict'] ) : '<span class="gco-pd-na">&mdash;</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td>
 					</tr>
 				<?php endforeach; ?>

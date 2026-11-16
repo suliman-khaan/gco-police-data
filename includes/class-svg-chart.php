@@ -196,7 +196,7 @@ final class GCO_PD_SVG_Chart {
 	 * highlighted as the latest figure; a missing value shows "Not provided" instead of a zero bar.
 	 *
 	 * @param array<string,int|null> $items Label => value (null = missing), oldest first.
-	 * @param array                  $args  title, description, unit (e.g. "days"), axis_label.
+	 * @param array                  $args  title, description, unit (e.g. "days"), axis_label, highlight_last (default true: the last bar is the latest round).
 	 * @return string SVG markup, or an empty string when no value is present.
 	 */
 	public static function bars( array $items, array $args = array() ) {
@@ -214,6 +214,7 @@ final class GCO_PD_SVG_Chart {
 		$desc  = $args['description'] ?? '';
 		$unit  = $args['unit'] ?? '';
 		$axis  = $args['axis_label'] ?? '';
+		$mark_last = ! array_key_exists( 'highlight_last', $args ) || $args['highlight_last'];
 		$uid   = 'gco-bars-' . substr( md5( $title . implode( '|', array_keys( $items ) ) ), 0, 8 );
 
 		list( $axis_max, $step ) = self::nice_axis( max( $values ) );
@@ -254,15 +255,15 @@ final class GCO_PD_SVG_Chart {
 
 		$i = 0;
 		foreach ( $items as $label => $value ) {
-			$latest = $i === $count - 1;
+			$latest = $mark_last && $i === $count - 1;
 			$cy     = $top + $i * $row_h + $row_h / 2;
 			$svg   .= '<text x="' . ( $left - 12 ) . '" y="' . round( $cy + 4, 1 ) . '" text-anchor="end" font-size="13" fill="#1c2b29"' . ( $latest ? ' font-weight="600"' : '' ) . '>' . self::e( $label ) . '</text>';
 			if ( null === $value ) {
 				$svg .= '<text x="' . ( $left + 8 ) . '" y="' . round( $cy + 4, 1 ) . '" font-size="13" font-style="italic" fill="#6b7775">Not provided</text>';
 			} else {
 				$w    = max( 2, round( $x( $value ) - $left, 1 ) );
-				$text = trim( $value . ' ' . $unit );
-				$svg .= '<rect x="' . $left . '" y="' . round( $cy - $bar_h / 2, 1 ) . '" width="' . $w . '" height="' . $bar_h . '" rx="3" fill="' . ( $latest ? '#0f6b3f' : '#8fd0a4' ) . '"><title>' . self::e( $label . ': ' . $text ) . '</title></rect>';
+				$text = '%' === $unit ? $value . '%' : trim( $value . ' ' . $unit );
+				$svg .= '<rect x="' . $left . '" y="' . round( $cy - $bar_h / 2, 1 ) . '" width="' . $w . '" height="' . $bar_h . '" rx="3" fill="' . ( $latest || ! $mark_last ? '#0f6b3f' : '#8fd0a4' ) . '"><title>' . self::e( $label . ': ' . $text ) . '</title></rect>';
 				$svg .= '<text x="' . round( $left + $w + 8, 1 ) . '" y="' . round( $cy + 4, 1 ) . '" font-size="13" font-weight="600" fill="#1c2b29">' . self::e( $text ) . '</text>';
 			}
 			++$i;

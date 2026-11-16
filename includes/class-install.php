@@ -15,7 +15,7 @@ final class GCO_PD_Install {
 	/**
 	 * Current schema version. Bump when the table definitions below change.
 	 */
-	const DB_VERSION = '3';
+	const DB_VERSION = '4';
 
 	/**
 	 * Option holding the installed schema version.
@@ -89,6 +89,7 @@ final class GCO_PD_Install {
   slug VARCHAR(80) NOT NULL,
   name VARCHAR(120) NOT NULL,
   aliases VARCHAR(255) NULL DEFAULT NULL,
+  shared_group VARCHAR(60) NULL DEFAULT NULL,
   country ENUM('England','Wales') NOT NULL DEFAULT 'England',
   page_id BIGINT UNSIGNED NULL DEFAULT NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
@@ -127,6 +128,26 @@ final class GCO_PD_Install {
   sg_holders_status {$status},
   fac_holders INT UNSIGNED NULL DEFAULT NULL,
   fac_holders_status {$status},
+  apps_received INT UNSIGNED NULL DEFAULT NULL,
+  apps_received_status {$status},
+  apps_completed INT UNSIGNED NULL DEFAULT NULL,
+  apps_completed_status {$status},
+  volumes_period VARCHAR(120) NULL DEFAULT NULL,
+  outstanding INT UNSIGNED NULL DEFAULT NULL,
+  outstanding_status {$status},
+  oldest_days SMALLINT UNSIGNED NULL DEFAULT NULL,
+  oldest_days_status {$status},
+  backlog_unit ENUM('count','percent') NOT NULL DEFAULT 'count',
+  backlog_m0_3 DECIMAL(10,2) UNSIGNED NULL DEFAULT NULL,
+  backlog_m3_6 DECIMAL(10,2) UNSIGNED NULL DEFAULT NULL,
+  backlog_m6_12 DECIMAL(10,2) UNSIGNED NULL DEFAULT NULL,
+  backlog_m12_plus DECIMAL(10,2) UNSIGNED NULL DEFAULT NULL,
+  backlog_status {$status},
+  standard_text VARCHAR(255) NULL DEFAULT NULL,
+  standard_days SMALLINT UNSIGNED NULL DEFAULT NULL,
+  standard_days_status {$status},
+  standard_met_pct DECIMAL(5,2) UNSIGNED NULL DEFAULT NULL,
+  standard_met_pct_status {$status},
   notes TEXT NULL,
   pdf_id BIGINT UNSIGNED NULL DEFAULT NULL,
   updated_by BIGINT UNSIGNED NOT NULL DEFAULT 0,

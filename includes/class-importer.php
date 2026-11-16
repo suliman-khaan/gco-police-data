@@ -28,6 +28,10 @@ final class GCO_PD_Importer {
 		'sg_grant_days', 'sg_grant_status', 'fac_grant_days', 'fac_grant_status',
 		'sg_renew_days', 'sg_renew_status', 'fac_renew_days', 'fac_renew_status',
 		'variation_days', 'variation_status', 'sg_holders', 'sg_holders_status', 'fac_holders', 'fac_holders_status',
+		'apps_received', 'apps_received_status', 'apps_completed', 'apps_completed_status', 'volumes_period',
+		'outstanding', 'outstanding_status', 'oldest_days', 'oldest_days_status',
+		'backlog_unit', 'backlog_m0_3', 'backlog_m3_6', 'backlog_m6_12', 'backlog_m12_plus', 'backlog_status',
+		'standard_text', 'standard_days', 'standard_days_status', 'standard_met_pct', 'standard_met_pct_status',
 	);
 
 	/* ------------------------------------------------------------------ Upload */
@@ -238,7 +242,56 @@ final class GCO_PD_Importer {
 				'data'       => $clean,
 			);
 		}
-		return $out;
+		return self::warn_shared_mismatch( $out, array_diff( self::FOI_COMPARE, array( 'foi_ref', 'response_date', 'notes', 'pdf_id' ) ) );
+	}
+
+	/**
+	 * Forces that run one licensing department together normally carry the same combined figures. When the
+	 * figures typed for them in the same round or quarter differ, say so on each row (a warning, not an error:
+	 * the forces may have given separate figures).
+	 *
+	 * @param array    $rows   Preview rows (force_id, period, state, data, warnings, force_name).
+	 * @param string[] $fields Figure columns that must match across the group.
+	 * @return array Rows with warnings added.
+	 */
+	private static function warn_shared_mismatch( array $rows, array $fields ) {
+		$groups = array();
+		foreach ( $rows as $i => $row ) {
+			if ( empty( $row['force_id'] ) || 'error' === $row['state'] ) {
+				continue;
+			}
+			$force = GCO_PD_Repository::get_force( (int) $row['force_id'] );
+			if ( $force && ! empty( $force->shared_group ) ) {
+				$groups[ $row['period'] . '|' . $force->shared_group ][] = $i;
+			}
+		}
+		foreach ( $groups as $indexes ) {
+			if ( count( $indexes ) < 2 ) {
+				continue;
+			}
+			$signatures = array();
+			foreach ( $indexes as $i ) {
+				$parts = array();
+				foreach ( $fields as $field ) {
+					$value   = $rows[ $i ]['data'][ $field ] ?? null;
+					$parts[] = is_numeric( $value ) ? (string) (float) $value : (string) $value;
+				}
+				$signatures[ $i ] = md5( implode( '|', $parts ) );
+			}
+			if ( count( array_unique( $signatures ) ) < 2 ) {
+				continue;
+			}
+			foreach ( $indexes as $i ) {
+				$others = array();
+				foreach ( $indexes as $j ) {
+					if ( $j !== $i ) {
+						$others[] = $rows[ $j ]['force_name'];
+					}
+				}
+				$rows[ $i ]['warnings']['shared'] = sprintf( 'Shares a licensing department with %s, but the figures differ. Forces in a shared department normally carry the same combined figures; if these are separate figures, ignore this. National totals count identical shared figures once and different figures separately.', implode( ', ', $others ) );
+			}
+		}
+		return $rows;
 	}
 
 	/**
@@ -332,7 +385,7 @@ final class GCO_PD_Importer {
 				'data'       => $clean,
 			);
 		}
-		return $out;
+		return self::warn_shared_mismatch( $out, GCO_PD_Validator::NPCC_COLUMNS );
 	}
 
 	/**
@@ -348,6 +401,13 @@ final class GCO_PD_Importer {
 		foreach ( $fields as $field ) {
 			$new = $clean[ $field ] ?? null;
 			$old = $current->$field ?? null;
+			// DECIMAL columns come back as "12.50": compare numbers as numbers so an unchanged row stays unchanged.
+			if ( is_numeric( $new ) && is_numeric( $old ) ) {
+				if ( abs( (float) $new - (float) $old ) > 0.00001 ) {
+					$changed[] = $field;
+				}
+				continue;
+			}
 			if ( (string) $new !== (string) $old ) {
 				$changed[] = $field;
 			}

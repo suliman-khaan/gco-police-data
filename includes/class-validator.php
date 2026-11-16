@@ -47,6 +47,39 @@ final class GCO_PD_Validator {
 	);
 
 	/**
+	 * Extra FOI figures asked from round 2026-11 onwards (applications, backlog, service standards).
+	 * Same value/status pairing as FOI_METRICS, but kept apart so they never change the coverage counts
+	 * or the "figures not provided" totals of older rounds, which were never asked these questions.
+	 *
+	 * type: count (whole number) | days | percent (0 to 100, up to 2 decimals).
+	 *
+	 * @var array<string,array{column:string,status:string,type:string,max:int}>
+	 */
+	const FOI_EXTRA_METRICS = array(
+		'apps_received'  => array( 'column' => 'apps_received', 'status' => 'apps_received_status', 'type' => 'count', 'max' => 4294967295 ),
+		'apps_completed' => array( 'column' => 'apps_completed', 'status' => 'apps_completed_status', 'type' => 'count', 'max' => 4294967295 ),
+		'outstanding'    => array( 'column' => 'outstanding', 'status' => 'outstanding_status', 'type' => 'count', 'max' => 4294967295 ),
+		'oldest'         => array( 'column' => 'oldest_days', 'status' => 'oldest_days_status', 'type' => 'days', 'max' => 65535 ),
+		'standard_days'  => array( 'column' => 'standard_days', 'status' => 'standard_days_status', 'type' => 'days', 'max' => 65535 ),
+		'standard_met'   => array( 'column' => 'standard_met_pct', 'status' => 'standard_met_pct_status', 'type' => 'percent', 'max' => 100 ),
+	);
+
+	/**
+	 * Backlog age bands: column => label. One shared unit (count or percent) and one shared status.
+	 *
+	 * @var array<string,string>
+	 */
+	const BACKLOG_BANDS = array(
+		'backlog_m0_3'     => 'Up to 3 months',
+		'backlog_m3_6'     => '3 to 6 months',
+		'backlog_m6_12'    => '6 to 12 months',
+		'backlog_m12_plus' => 'Over 12 months',
+	);
+
+	const UNIT_COUNT   = 'count';
+	const UNIT_PERCENT = 'percent';
+
+	/**
 	 * NPCC count columns.
 	 *
 	 * @var string[]
@@ -152,6 +185,228 @@ final class GCO_PD_Validator {
 	}
 
 	/**
+	 * Parses a decimal number (not negative) without ever turning "no value" into 0.
+	 *
+	 * @param mixed $raw Raw value: int, float, numeric string (a trailing % is ignored), or blank.
+	 * @return float|null|false Number, null when blank, false when not a non-negative number.
+	 */
+	public static function parse_decimal( $raw ) {
+		if ( null === $raw ) {
+			return null;
+		}
+		if ( is_int( $raw ) || is_float( $raw ) ) {
+			return $raw >= 0 ? (float) $raw : false;
+		}
+		if ( ! is_string( $raw ) ) {
+			return false;
+		}
+		$raw = str_replace( array( '%', ',' ), '', trim( $raw ) );
+		$raw = trim( $raw );
+		if ( '' === $raw ) {
+			return null;
+		}
+		if ( 1 === preg_match( '/^\d+(\.\d+)?$/D', $raw ) ) {
+			return (float) $raw;
+		}
+		return false;
+	}
+
+	/**
+	 * Parses one percentage (0 to 100). A bare value of 1 or less is read as a fraction (0.85 = 85%) because
+	 * Excel stores a cell typed as "85%" as 0.85; typing "0.5%" with the sign keeps it as 0.5 per cent.
+	 *
+	 * @param mixed $raw Raw value.
+	 * @return array{value:float|null|false,converted:bool}
+	 */
+	public static function parse_percent( $raw ) {
+		$has_sign  = is_string( $raw ) && false !== strpos( $raw, '%' );
+		$value     = self::parse_decimal( $raw );
+		$converted = false;
+		if ( is_float( $value ) && ! $has_sign && $value > 0 && $value <= 1 ) {
+			$value     = $value * 100;
+			$converted = true;
+		}
+		if ( is_float( $value ) ) {
+			if ( $value > 100 ) {
+				return array(
+					'value'     => false,
+					'converted' => false,
+				);
+			}
+			$value = round( $value, 2 );
+		}
+		return array(
+			'value'     => $value,
+			'converted' => $converted,
+		);
+	}
+
+	/**
+	 * Normalises the backlog unit typed by a person or read from a spreadsheet.
+	 *
+	 * @param mixed $raw Raw unit: blank (means count), Count, Number, Percentage, %, ...
+	 * @return string|false 'count' or 'percent', false when unrecognised.
+	 */
+	public static function normalize_unit( $raw ) {
+		$value = strtolower( trim( (string) $raw ) );
+		if ( in_array( $value, array( '', 'count', 'counts', 'number', 'numbers', 'actual number', 'actual numbers', 'n', self::UNIT_COUNT ), true ) ) {
+			return self::UNIT_COUNT;
+		}
+		if ( in_array( $value, array( 'percent', 'percentage', 'percentages', 'per cent', '%', 'pct', self::UNIT_PERCENT ), true ) ) {
+			return self::UNIT_PERCENT;
+		}
+		return false;
+	}
+
+	/**
+	 * Validates the extra FOI figures (applications, backlog, service standards) of one response row.
+	 *
+	 * @param array $row      Raw row.
+	 * @param array $clean    Clean values so far (modified): adds the extra columns.
+	 * @param array $errors   Errors by column (modified).
+	 * @param array $warnings Warnings by column (modified).
+	 */
+	private static function validate_extras( array $row, array &$clean, array &$errors, array &$warnings ) {
+		foreach ( self::FOI_EXTRA_METRICS as $meta ) {
+			$column = $meta['column'];
+			if ( 'percent' === $meta['type'] ) {
+				$parsed = self::parse_percent( $row[ $column ] ?? null );
+				$result = self::validate_value_status( $parsed['value'], $row[ $meta['status'] ] ?? null, $meta['max'], true );
+				if ( $parsed['converted'] && ! $result['error'] ) {
+					$warnings[ $column ] = sprintf( 'Read %s as %s%% (a fraction). If you meant a very small percentage, type it with a %% sign.', rtrim( rtrim( number_format( $parsed['value'] / 100, 4, '.', '' ), '0' ), '.' ), rtrim( rtrim( number_format( $parsed['value'], 2, '.', '' ), '0' ), '.' ) );
+				}
+			} else {
+				$result = self::validate_value_status( $row[ $column ] ?? null, $row[ $meta['status'] ] ?? null, $meta['max'] );
+			}
+			if ( $result['error'] ) {
+				$errors[ $column ] = ( 'percent' === $meta['type'] && false === $parsed['value'] ) ? 'Must be a percentage between 0 and 100, or left blank when not provided.' : $result['error'];
+				continue;
+			}
+			$clean[ $column ]         = $result['value'];
+			$clean[ $meta['status'] ] = $result['status'];
+			if ( 'days' === $meta['type'] && null !== $result['value'] && $result['value'] > 3650 ) {
+				$warnings[ $column ] = sprintf( '%d days is more than ten years; check it is not a typo.', $result['value'] );
+			}
+		}
+
+		$period                = isset( $row['volumes_period'] ) ? trim( (string) $row['volumes_period'] ) : '';
+		$clean['volumes_period'] = '' === $period ? null : $period;
+		if ( strlen( $period ) > 120 ) {
+			$errors['volumes_period'] = 'The applications period must be 120 characters or fewer.';
+		}
+		$standard              = isset( $row['standard_text'] ) ? trim( (string) $row['standard_text'] ) : '';
+		$clean['standard_text'] = '' === $standard ? null : $standard;
+		if ( strlen( $standard ) > 255 ) {
+			$errors['standard_text'] = 'The service standard wording must be 255 characters or fewer.';
+		}
+
+		self::validate_backlog( $row, $clean, $errors, $warnings );
+	}
+
+	/**
+	 * Backlog age bands: one unit (count or percentage), one status for the group.
+	 *
+	 * Count: whole numbers; when all four bands and the outstanding figure are given they should add up.
+	 * Percentage: 0 to 100 each, adding to about 100. Bands typed as fractions that add to 1 (a spreadsheet
+	 * percent-formatted cell) are read as percentages. Percentages are stored as given and never summed.
+	 *
+	 * @param array $row      Raw row.
+	 * @param array $clean    Clean values (modified).
+	 * @param array $errors   Errors by column (modified).
+	 * @param array $warnings Warnings by column (modified).
+	 */
+	private static function validate_backlog( array $row, array &$clean, array &$errors, array &$warnings ) {
+		$unit = self::normalize_unit( $row['backlog_unit'] ?? null );
+		if ( false === $unit ) {
+			$errors['backlog_unit'] = 'Backlog unit must be Count or Percentage.';
+			$unit                   = self::UNIT_COUNT;
+		}
+		$clean['backlog_unit'] = $unit;
+
+		$values = array();
+		$failed = false;
+		foreach ( array_keys( self::BACKLOG_BANDS ) as $column ) {
+			$raw = $row[ $column ] ?? null;
+			if ( self::UNIT_PERCENT === $unit ) {
+				$value = self::parse_decimal( $raw );
+				if ( false === $value || ( is_float( $value ) && $value > 100 ) ) {
+					$errors[ $column ] = 'Must be a percentage between 0 and 100, or left blank when not provided.';
+					$failed            = true;
+					continue;
+				}
+			} else {
+				$value = self::parse_count( $raw );
+				if ( false === $value || ( is_int( $value ) && $value > 4294967295 ) ) {
+					$errors[ $column ] = 'Backlog counts must be whole numbers, or left blank when not provided. If the force gave percentages, set the unit to Percentage.';
+					$failed            = true;
+					continue;
+				}
+			}
+			$values[ $column ] = $value;
+		}
+
+		$given = array_filter(
+			$values,
+			static function ( $value ) {
+				return null !== $value;
+			}
+		);
+
+		if ( ! $failed && self::UNIT_PERCENT === $unit && $given ) {
+			$sum = array_sum( $given );
+			if ( max( $given ) <= 1 && $sum >= 0.98 && $sum <= 1.02 ) {
+				foreach ( $given as $column => $value ) {
+					$values[ $column ] = $value * 100;
+				}
+				$given    = array_filter(
+					$values,
+					static function ( $value ) {
+						return null !== $value;
+					}
+				);
+				$sum      = array_sum( $given );
+				$warnings['backlog_unit'] = 'The backlog percentages were entered as fractions that add up to 1, so they were read as percentages.';
+			}
+			if ( count( $given ) > 1 && ( $sum < 99 || $sum > 101 ) ) {
+				$warnings['backlog_status'] = sprintf( 'The backlog percentages add up to %s%%, not about 100%%. Check them.', rtrim( rtrim( number_format( $sum, 2, '.', '' ), '0' ), '.' ) );
+			}
+		}
+
+		$status = self::normalize_status( $row['backlog_status'] ?? null );
+		if ( false === $status ) {
+			$errors['backlog_status'] = 'Status must be Actual, Estimate or Not provided.';
+		} elseif ( ! $failed ) {
+			if ( $given ) {
+				if ( null === $status ) {
+					$errors['backlog_status'] = 'Choose Actual or Estimate for the backlog figures.';
+				} elseif ( self::STATUS_NOT_PROVIDED === $status ) {
+					$errors['backlog_status'] = 'The backlog figures cannot be marked Not provided. Clear them or choose Actual or Estimate.';
+				}
+			} elseif ( null !== $status && self::STATUS_NOT_PROVIDED !== $status ) {
+				$errors['backlog_status'] = 'A backlog status of Actual or Estimate needs at least one figure. Leave the status as Not provided if there are none.';
+			}
+		}
+
+		foreach ( array_keys( self::BACKLOG_BANDS ) as $column ) {
+			$value            = $values[ $column ] ?? null;
+			$clean[ $column ] = null === $value ? null : ( self::UNIT_PERCENT === $unit ? round( (float) $value, 2 ) : (int) $value );
+		}
+		$clean['backlog_status'] = ( $given && ! isset( $errors['backlog_status'] ) ) ? $status : self::STATUS_NOT_PROVIDED;
+
+		// Counts should add up to the outstanding total when everything is given.
+		if (
+			! $failed
+			&& self::UNIT_COUNT === $unit
+			&& count( $given ) === count( self::BACKLOG_BANDS )
+			&& isset( $clean['outstanding'] )
+			&& null !== $clean['outstanding']
+			&& array_sum( $given ) !== $clean['outstanding']
+		) {
+			$warnings['backlog_status'] = sprintf( 'The backlog age bands add up to %s but outstanding applications is %s.', number_format( array_sum( $given ) ), number_format( $clean['outstanding'] ) );
+		}
+	}
+
+	/**
 	 * Validates one FOI response row (one force, one round).
 	 *
 	 * Input keys: foi_ref, response_date (Y-m-d), the seven value columns and seven status columns
@@ -184,6 +439,8 @@ final class GCO_PD_Validator {
 				$warnings[ $meta['column'] ] = sprintf( '%d days is unusually long; check it is not weeks or months.', $result['value'] );
 			}
 		}
+
+		self::validate_extras( $row, $clean, $errors, $warnings );
 
 		$ref = isset( $row['foi_ref'] ) ? trim( (string) $row['foi_ref'] ) : '';
 		if ( strlen( $ref ) > 80 ) {
@@ -302,10 +559,11 @@ final class GCO_PD_Validator {
 	 * @param mixed $raw_value  Raw value.
 	 * @param mixed $raw_status Raw status.
 	 * @param int   $max        Largest value the column can hold.
-	 * @return array{value:int|null,status:string|null,error:string|null}
+	 * @param bool  $decimal    Whether $raw_value is an already parsed decimal (percentages).
+	 * @return array{value:int|float|null,status:string|null,error:string|null}
 	 */
-	private static function validate_value_status( $raw_value, $raw_status, $max ) {
-		$value  = self::parse_count( $raw_value );
+	private static function validate_value_status( $raw_value, $raw_status, $max, $decimal = false ) {
+		$value  = $decimal ? ( false === $raw_value ? false : ( null === $raw_value ? null : (float) $raw_value ) ) : self::parse_count( $raw_value );
 		$status = self::normalize_status( $raw_status );
 		$fail   = static function ( $message ) {
 			return array(
