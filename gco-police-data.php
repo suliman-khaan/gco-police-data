@@ -5,7 +5,8 @@
  * Version:           0.1.0
  * Requires at least: 6.5
  * Requires PHP:      8.1
- * Author:            Gun Cabinets Online
+ * Author:            Suliman K.
+ * Author URI:        https://sulimankhan.pro
  * License:           Proprietary
  * Text Domain:       gco-police-data
  *

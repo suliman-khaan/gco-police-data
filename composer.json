@@ -3,6 +3,12 @@
 	"description": "GCO Police Data WordPress plugin (dev tooling only; the plugin has no runtime dependencies).",
 	"type": "wordpress-plugin",
 	"license": "proprietary",
+	"authors": [
+		{
+			"name": "Suliman K.",
+			"homepage": "https://sulimankhan.pro"
+		}
+	],
 	"require": {
 		"php": ">=8.1"
 	},
