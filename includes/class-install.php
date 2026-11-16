@@ -15,7 +15,7 @@ final class GCO_PD_Install {
 	/**
 	 * Current schema version. Bump when the table definitions below change.
 	 */
-	const DB_VERSION = '1';
+	const DB_VERSION = '2';
 
 	/**
 	 * Option holding the installed schema version.
@@ -131,7 +131,7 @@ final class GCO_PD_Install {
   updated_at DATETIME NOT NULL,
   PRIMARY KEY  (id),
   UNIQUE KEY round_force (round_id,force_id),
-  KEY force (force_id)
+  KEY force_id (force_id)
 ) {$charset};";
 
 		$sql[] = "CREATE TABLE {$quarter} (
@@ -156,7 +156,7 @@ final class GCO_PD_Install {
   temporary_permits INT UNSIGNED NULL DEFAULT NULL,
   notes TEXT NULL,
   PRIMARY KEY  (quarter_id,force_id),
-  KEY force (force_id)
+  KEY force_id (force_id)
 ) {$charset};";
 
 		foreach ( $sql as $statement ) {

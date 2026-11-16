@@ -433,8 +433,7 @@ final class GCO_PD_Repository {
 		$id    = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE round_id = %d AND force_id = %d", $round_id, $force_id ) );
 
 		if ( $id ) {
-			$wpdb->update( $table, $data, array( 'id' => $id ) );
-			return $id;
+			return false === $wpdb->update( $table, $data, array( 'id' => $id ) ) ? new WP_Error( 'gco_pd_db', 'Could not save the response.' ) : $id;
 		}
 		$wpdb->insert( $table, $data );
 		return $wpdb->insert_id ? (int) $wpdb->insert_id : new WP_Error( 'gco_pd_db', 'Could not save the response.' );
@@ -663,10 +662,10 @@ final class GCO_PD_Repository {
 		$exists = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE quarter_id = %d AND force_id = %d", $quarter_id, $force_id ) );
 
 		if ( $exists ) {
-			$wpdb->update( $table, $data, array( 'quarter_id' => (int) $quarter_id, 'force_id' => (int) $force_id ) );
+			$ok = $wpdb->update( $table, $data, array( 'quarter_id' => (int) $quarter_id, 'force_id' => (int) $force_id ) );
 		} else {
-			$wpdb->insert( $table, $data );
+			$ok = $wpdb->insert( $table, $data );
 		}
-		return true;
+		return false === $ok ? new WP_Error( 'gco_pd_db', 'Could not save the NPCC row.' ) : true;
 	}
 }
