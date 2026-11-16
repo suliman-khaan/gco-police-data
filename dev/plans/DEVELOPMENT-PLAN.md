@@ -129,10 +129,33 @@ Each milestone = one or more feature branches → merged to `development` → ta
 
 ### M7 — Real data, QA & launch · `release/1.0.0` · 2 days
 - [ ] Load the client's real FOI data (arrives end of November) + any earlier rounds/quarters for trends
-- [ ] Full QA checklist (spec §12), PageSpeed before/after on the portal and a non-police page
-- [ ] Release `v1.0.0` → zip → install on live → publish rounds → swap the portal live → purge caches
-- [ ] Short admin guide for Emma (how to enter a round, import, publish)
+- [~] Full QA checklist (spec §12): **done on the local copy** (results below); repeat on live with real data
+- [~] PageSpeed before/after: assets verified (nothing on non-police pages, JS deferred, 5.4 KB + 2.6 KB gzipped); run PageSpeed itself on live
+- [x] Short admin guide for Emma: **Police Data → Help** screen inside the plugin; README rewritten (install, shortcodes, WP-CLI, hooks)
+- [x] `wp gco-pd portal create|apply|restore` puts the new portal on the live page with a backup (`apply --page=4180`)
+- [x] `v0.3.0` built for live testing (install the zip, run the dry-run migrations)
+- [ ] Release `v1.0.0` → zip → install on live → publish rounds → `portal apply` → force-page migration → purge caches
 - **Done when:** live portal and force pages show published data; client confirms.
+
+**QA run, local copy, 16 Nov 2026**
+
+| Spec §12 item | Result |
+|---|---|
+| Derbyshire FOI row: values, statuses, date, ref | pass (32 days, Actual, 11 Jun 2026, 01/FOI/26/008471/V) |
+| NPCC Q4: 43 forces, 70.67%, 476,079; GMP / Met / TVP aliases | pass |
+| Blank / Not provided: shown as such, unranked, not 0 in averages | pass |
+| Mismatch rows rejected with a message; duplicate force in a round rejected | pass |
+| Estimate badge; draft round never visible | pass |
+| Publish updates snapshot and bumps the cache version | pass; **WP Rocket purge not testable locally, check on live** |
+| Missing from latest round: last figures kept, labelled; ties share rank; fewer than 43 forces | pass |
+| Search: partial names, aliases, keyboard, Escape, no-match | pass |
+| Non-admin (shop manager, logged-out): 8 screens and 16 handlers denied even with a valid nonce; admin refused without nonce or via GET | pass |
+| Malicious uploads: PHP renamed .xlsx/.csv, .php, double extension, .exe, over 2 MB; CSV formula injection on export | pass |
+| Mobile 375 px, real Porto theme: portal and force page, no page-level scroll, tables scroll inside their cards | pass |
+| No plugin assets on non-police pages (home, about, shop category, blog, FAQ, guides, old portal) | pass |
+| Cost per view | force page: 1 plugin query (the other 61 are the WooCommerce product grid); portal: 0 |
+
+Found and fixed during QA: invalid `font-family` declaration (browsers dropped it), editor screens denied by WordPress (menu hiding), `page_id = 0` forces never auto-linked.
 
 ## 4. Timeline
 

@@ -77,6 +77,7 @@ final class GCO_PD_Plugin {
 		GCO_PD_WPBakery::init();
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			GCO_PD_CLI::register();
+			GCO_PD_CLI_Portal::register();
 		}
 	}
 

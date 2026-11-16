@@ -1,5 +1,5 @@
 /* GCO Police Data - front end. Loaded only on pages that use a shortcode. */
-.gco-pd { --gco-brand: #064d49; --gco-brand-d: #043836; --gco-ink: #1c2b29; --gco-mute: #5b6765; --gco-line: #e1e6e5; --gco-soft: #f4f7f6; --gco-bg: var(--gco-soft); --gco-ok: #0a6a34; --gco-ok-bg: #dcf1e2; --gco-bad: #a12a1a; --gco-bad-bg: #fde8e5; --gco-est: #0b3d91; --gco-est-bg: #dfeafc; font-family: Poppins, inherit, sans-serif; color: var(--gco-ink); line-height: 1.5; margin: 0 0 24px; }
+.gco-pd { --gco-brand: #064d49; --gco-brand-d: #043836; --gco-ink: #1c2b29; --gco-mute: #5b6765; --gco-line: #e1e6e5; --gco-soft: #f4f7f6; --gco-bg: var(--gco-soft); --gco-ok: #0a6a34; --gco-ok-bg: #dcf1e2; --gco-bad: #a12a1a; --gco-bad-bg: #fde8e5; --gco-est: #0b3d91; --gco-est-bg: #dfeafc; font-family: Poppins, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--gco-ink); line-height: 1.5; margin: 0 0 24px; }
 .gco-pd *, .gco-pd *::before, .gco-pd *::after { box-sizing: border-box; }
 .gco-pd .gco-pd { margin: 0; }
 .gco-pd a { color: var(--gco-brand); }
@@ -330,3 +330,6 @@
 	.gco-pd-tab, .gco-pd-button, .gco-pd-search__button, .gco-pd-az__letter { transition: background-color .15s ease, border-color .15s ease; }
 	.gco-pd-faq__chevron { transition: transform .15s ease; }
 }
+
+/* WPBakery rows holding portal blocks: breathing room under the full-width hero */
+.vc_row.gco-pd-row-hero { margin-bottom: 20px !important; }
