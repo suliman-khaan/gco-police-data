@@ -54,6 +54,7 @@ final class GCO_PD_Admin {
 	 */
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
+		add_action( 'admin_head', array( __CLASS__, 'hide_editor_pages' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue' ) );
 		foreach ( self::HANDLERS as $action => $method ) {
 			add_action( 'admin_post_' . $action, array( __CLASS__, $method ) );
@@ -74,11 +75,19 @@ final class GCO_PD_Admin {
 		add_submenu_page( self::SLUG_ROUNDS, 'Forces', 'Forces', $cap, self::SLUG_FORCES, array( __CLASS__, 'page_forces' ) );
 		add_submenu_page( self::SLUG_ROUNDS, 'Force Pages', 'Force Pages', $cap, self::SLUG_PAGES, array( __CLASS__, 'page_force_pages' ) );
 		add_submenu_page( self::SLUG_ROUNDS, 'Edit force page', 'Edit force page', $cap, self::SLUG_PROFILE, array( __CLASS__, 'page_profile' ) );
-		remove_submenu_page( self::SLUG_ROUNDS, self::SLUG_PROFILE );
 		add_submenu_page( self::SLUG_ROUNDS, 'Settings', 'Settings', $cap, self::SLUG_SETTINGS, array( __CLASS__, 'page_settings' ) );
 		// The round editor is reachable by link only; it stays out of the menu.
 		add_submenu_page( self::SLUG_ROUNDS, 'Edit round', 'Edit round', $cap, self::SLUG_ROUND, array( __CLASS__, 'page_round' ) );
+	}
+
+	/**
+	 * Keeps the editor screens out of the menu. This runs on admin_head, after WordPress has checked
+	 * access to the page: removing them in admin_menu also removes them from that check and gives
+	 * "Sorry, you are not allowed to access this page".
+	 */
+	public static function hide_editor_pages() {
 		remove_submenu_page( self::SLUG_ROUNDS, self::SLUG_ROUND );
+		remove_submenu_page( self::SLUG_ROUNDS, self::SLUG_PROFILE );
 	}
 
 	/**
