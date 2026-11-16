@@ -23,7 +23,7 @@ final class GCO_PD_Calculator {
 	/**
 	 * Snapshot layout version; bump when the structure changes so old snapshots are rebuilt.
 	 */
-	const SCHEMA = 1;
+	const SCHEMA = 2;
 
 	/**
 	 * Metrics that can be ranked (shorter wait is better). Holders are not ranked.
@@ -75,12 +75,32 @@ final class GCO_PD_Calculator {
 				'country' => $force['country'] ?? 'England',
 				'aliases' => self::split_aliases( $force['aliases'] ?? '' ),
 				'page_id' => empty( $force['page_id'] ) ? null : (int) $force['page_id'],
+				'shared'  => null,
 				'foi'     => null,
 				'npcc'    => null,
 				'trend'   => array(),
 			);
 		}
 		$snapshot['total_forces'] = count( $forces );
+
+		// Forces that run one licensing department together: each knows who it shares with.
+		foreach ( self::shared_groups( $forces ) as $group => $member_ids ) {
+			foreach ( $member_ids as $id ) {
+				$others = array();
+				foreach ( $member_ids as $other_id ) {
+					if ( $other_id !== $id ) {
+						$others[] = array(
+							'slug' => $forces[ $other_id ]['slug'],
+							'name' => $forces[ $other_id ]['name'],
+						);
+					}
+				}
+				$snapshot['forces'][ $forces[ $id ]['slug'] ]['shared'] = array(
+					'group' => $group,
+					'with'  => $others,
+				);
+			}
+		}
 
 		self::build_foi( $snapshot, $forces, $rounds, $input['responses'] ?? array() );
 		self::build_npcc( $snapshot, $forces, $quarters, $input['npcc'] ?? array() );
@@ -113,6 +133,7 @@ final class GCO_PD_Calculator {
 					'not_provided' => 0,
 				),
 				'holders'     => array(),
+				'extra'       => array(),
 			),
 			'npcc'         => array(
 				'national'    => null,
@@ -199,9 +220,11 @@ final class GCO_PD_Calculator {
 			$idx     = $index_by_label[ $label ];
 
 			// Change vs the adjacent previous round, only when this force answered it too.
-			$previous = null;
+			$previous     = null;
+			$previous_row = null;
 			if ( $idx > 0 && isset( $by_force[ $force_id ][ $rounds[ $idx - 1 ]['label'] ] ) ) {
-				$previous = self::metric_values( $by_force[ $force_id ][ $rounds[ $idx - 1 ]['label'] ] );
+				$previous_row = $by_force[ $force_id ][ $rounds[ $idx - 1 ]['label'] ];
+				$previous     = self::metric_values( $previous_row );
 			}
 			foreach ( $metrics as $key => $metric ) {
 				$metrics[ $key ]['rank']      = null;
@@ -215,9 +238,12 @@ final class GCO_PD_Calculator {
 				}
 			}
 
+			$extra = self::extra_figures( $row, $previous_row );
+
 			$current[ $slug ] = array(
 				'label'   => $label,
 				'metrics' => $metrics,
+				'extra'   => $extra,
 			);
 
 			$snapshot['forces'][ $slug ]['foi'] = array(
@@ -228,6 +254,7 @@ final class GCO_PD_Calculator {
 				'pdf_id'        => empty( $row['pdf_id'] ) ? null : (int) $row['pdf_id'],
 				'metrics'       => $metrics,
 				'coverage'      => self::coverage( $metrics ),
+				'extra'         => $extra,
 			);
 
 			if ( $label === $latest_label ) {
@@ -289,14 +316,26 @@ final class GCO_PD_Calculator {
 			);
 		}
 
-		// National figures per metric over each force's current usable value.
+		// National figures per metric over each force's current usable value. Forces in a shared department
+		// that carry the same combined figure count once, so a department is never counted twice.
+		$group_of = array();
+		foreach ( $forces as $force ) {
+			$group_of[ $force['slug'] ] = self::group_key( $force );
+		}
 		foreach ( array_keys( GCO_PD_Validator::FOI_METRICS ) as $key ) {
 			$values    = array();
 			$estimates = 0;
 			$fastest   = null;
+			$items     = array();
+			foreach ( $current as $slug => $data ) {
+				if ( self::usable( $data['metrics'][ $key ] ) ) {
+					$items[ $slug ] = $data['metrics'][ $key ]['value'];
+				}
+			}
+			$unique = self::unique_departments( $items, $group_of );
 			foreach ( $current as $slug => $data ) {
 				$metric = $data['metrics'][ $key ];
-				if ( ! self::usable( $metric ) ) {
+				if ( ! self::usable( $metric ) || ! in_array( $slug, $unique['keys'], true ) ) {
 					continue;
 				}
 				$values[] = $metric['value'];
@@ -310,8 +349,11 @@ final class GCO_PD_Calculator {
 					);
 				}
 			}
-			$snapshot['foi']['metrics'][ $key ] = self::describe( $values, $estimates, $fastest );
+			$snapshot['foi']['metrics'][ $key ]             = self::describe( $values, $estimates, $fastest );
+			$snapshot['foi']['metrics'][ $key ]['n_forces'] = count( $items );
+			$snapshot['foi']['metrics'][ $key ]['merged']   = $unique['merged'];
 		}
+		$snapshot['foi']['extra'] = self::national_extras( $current, $group_of );
 		foreach ( array( 'sg_holders', 'fac_holders' ) as $key ) {
 			$snapshot['foi']['holders'][ $key ] = array(
 				'n'   => $snapshot['foi']['metrics'][ $key ]['n'],
@@ -468,8 +510,12 @@ final class GCO_PD_Calculator {
 
 		$entries   = array();
 		$unranked  = array();
-		$sums      = self::npcc_sums( $latest_rows );
-		$prev_sums = self::npcc_sums( $previous_rows );
+		$group_of_id = array();
+		foreach ( $forces as $id => $force ) {
+			$group_of_id[ $id ] = self::group_key( $force );
+		}
+		$sums      = self::npcc_sums( $latest_rows, $group_of_id );
+		$prev_sums = self::npcc_sums( $previous_rows, $group_of_id );
 
 		foreach ( $latest_rows as $force_id => $row ) {
 			$slug    = $forces[ $force_id ]['slug'];
@@ -572,6 +618,7 @@ final class GCO_PD_Calculator {
 				'received'         => $sums['received'],
 				'completed'        => $sums['completed'],
 				'in_sla'           => $sums['in_sla'],
+				'merged'           => $sums['merged'],
 				'pct'              => null === $national_pct ? null : round( $national_pct, 6 ),
 				'change_pp'        => ( null !== $national_pct && null !== $prev_pct ) ? round( ( $national_pct - $prev_pct ) * 100, 2 ) : null,
 				'sla_target'       => self::SLA_NUM / self::SLA_DEN,
@@ -583,12 +630,14 @@ final class GCO_PD_Calculator {
 
 	/**
 	 * Sums NPCC columns, skipping NULLs (a missing figure is not 0). The % is built only from forces that
-	 * have both "completed" and "completed in SLA", so a half-filled row cannot skew it.
+	 * have both "completed" and "completed in SLA", so a half-filled row cannot skew it. Forces in a shared
+	 * department that carry the same combined figure are counted once.
 	 *
-	 * @param array $rows Rows by force id.
+	 * @param array $rows     Rows by force id.
+	 * @param array $group_of Force id => shared group key.
 	 * @return array
 	 */
-	private static function npcc_sums( array $rows ) {
+	private static function npcc_sums( array $rows, array $group_of = array() ) {
 		$sums = array(
 			'holders'       => null,
 			'certificates'  => null,
@@ -597,29 +646,251 @@ final class GCO_PD_Calculator {
 			'in_sla'        => null,
 			'pct_completed' => 0,
 			'pct_in_sla'    => 0,
+			'merged'        => 0,
 		);
-		$map = array(
+		$map  = array(
 			'holders'      => 'total_holders',
 			'certificates' => 'total_certificates',
 			'received'     => 'apps_received_12m',
 			'completed'    => 'apps_completed_12m',
 			'in_sla'       => 'completed_in_sla',
 		);
-		foreach ( $rows as $row ) {
-			foreach ( $map as $key => $column ) {
+		foreach ( $map as $key => $column ) {
+			$items = array();
+			foreach ( $rows as $force_id => $row ) {
 				$value = self::int_or_null( $row[ $column ] ?? null );
 				if ( null !== $value ) {
-					$sums[ $key ] = ( $sums[ $key ] ?? 0 ) + $value;
+					$items[ $force_id ] = $value;
 				}
 			}
+			$unique = self::unique_departments( $items, $group_of );
+			foreach ( $unique['keys'] as $force_id ) {
+				$sums[ $key ] = ( $sums[ $key ] ?? 0 ) + $items[ $force_id ];
+			}
+			$sums['merged'] = max( $sums['merged'], $unique['merged'] );
+		}
+
+		// The % uses forces that gave both figures; a shared pair counts once.
+		$pairs = array();
+		foreach ( $rows as $force_id => $row ) {
 			$done   = self::int_or_null( $row['apps_completed_12m'] ?? null );
 			$in_sla = self::int_or_null( $row['completed_in_sla'] ?? null );
 			if ( null !== $done && null !== $in_sla ) {
-				$sums['pct_completed'] += $done;
-				$sums['pct_in_sla']    += $in_sla;
+				$pairs[ $force_id ] = array( $done, $in_sla );
 			}
 		}
+		$unique = self::unique_departments( $pairs, $group_of );
+		foreach ( $unique['keys'] as $force_id ) {
+			$sums['pct_completed'] += $pairs[ $force_id ][0];
+			$sums['pct_in_sla']    += $pairs[ $force_id ][1];
+		}
 		return $sums;
+	}
+
+	/* ------------------------------------------------------- Shared departments */
+
+	/**
+	 * Group key of a force's firearms licensing department ('' when it has its own).
+	 *
+	 * @param array $force Force row.
+	 * @return string
+	 */
+	private static function group_key( array $force ) {
+		return isset( $force['shared_group'] ) ? trim( (string) $force['shared_group'] ) : '';
+	}
+
+	/**
+	 * Which forces share a department with which: group => member force ids (groups of two or more only).
+	 *
+	 * @param array $forces Active forces by id.
+	 * @return array<string,int[]>
+	 */
+	private static function shared_groups( array $forces ) {
+		$groups = array();
+		foreach ( $forces as $id => $force ) {
+			$key = self::group_key( $force );
+			if ( '' !== $key ) {
+				$groups[ $key ][] = (int) $id;
+			}
+		}
+		return array_filter(
+			$groups,
+			static function ( $members ) {
+				return count( $members ) > 1;
+			}
+		);
+	}
+
+	/**
+	 * Drops repeated shared-department figures before a national total or average is made.
+	 *
+	 * Forces in one shared group that carry the SAME figure are counted once: that is one department's
+	 * combined figure entered against each of its forces. If the figures differ they are separate figures
+	 * and all of them count. Forces outside a group are always counted.
+	 *
+	 * @param array $items    key => value (scalar or array), in the order they are considered.
+	 * @param array $group_of key => group key ('' for none). Same keys as $items.
+	 * @return array{keys:array,merged:int} Keys to count, and how many repeated figures were dropped.
+	 */
+	private static function unique_departments( array $items, array $group_of ) {
+		$seen   = array();
+		$keep   = array();
+		$merged = 0;
+		foreach ( $items as $key => $value ) {
+			$group = $group_of[ $key ] ?? '';
+			if ( '' === $group ) {
+				$keep[] = $key;
+				continue;
+			}
+			$signature = $group . '|' . md5( is_array( $value ) ? json_encode( $value ) : ( is_numeric( $value ) ? (string) (float) $value : (string) $value ) );
+			if ( isset( $seen[ $signature ] ) ) {
+				++$merged;
+				continue;
+			}
+			$seen[ $signature ] = true;
+			$keep[]             = $key;
+		}
+		return array(
+			'keys'   => $keep,
+			'merged' => $merged,
+		);
+	}
+
+	/* --------------------------------------------------------- Extra FOI figures */
+
+	/**
+	 * Reads the extra figures (applications, backlog, service standard) from a response row.
+	 *
+	 * @param array $row Response row.
+	 * @return array<string,array{value:int|float|null,status:string}>
+	 */
+	private static function extra_metric_values( array $row ) {
+		$out = array();
+		foreach ( GCO_PD_Validator::FOI_EXTRA_METRICS as $key => $meta ) {
+			$raw    = $row[ $meta['column'] ] ?? null;
+			$status = $row[ $meta['status'] ] ?? GCO_PD_Validator::STATUS_NOT_PROVIDED;
+			if ( null === $raw || '' === $raw || ! in_array( $status, array( GCO_PD_Validator::STATUS_ACTUAL, GCO_PD_Validator::STATUS_ESTIMATE ), true ) ) {
+				$out[ $key ] = array(
+					'value'  => null,
+					'status' => GCO_PD_Validator::STATUS_NOT_PROVIDED,
+				);
+				continue;
+			}
+			$out[ $key ] = array(
+				'value'  => 'percent' === $meta['type'] ? round( (float) $raw, 2 ) : (int) $raw,
+				'status' => $status,
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * The extra figures of one force's current response, with the change since the previous round.
+	 * Null when the force gave none of them (so older rounds and forces that skipped the questions show nothing).
+	 *
+	 * @param array      $row      Current response row.
+	 * @param array|null $previous Previous round's row for this force, when it answered that round too.
+	 * @return array|null
+	 */
+	private static function extra_figures( array $row, $previous ) {
+		$metrics  = self::extra_metric_values( $row );
+		$before   = $previous ? self::extra_metric_values( $previous ) : null;
+		$any      = false;
+		foreach ( $metrics as $key => $metric ) {
+			$metrics[ $key ]['change']    = null;
+			$metrics[ $key ]['direction'] = null;
+			if ( self::usable( $metric ) ) {
+				$any = true;
+				if ( $before && self::usable( $before[ $key ] ) ) {
+					$delta                        = $metric['value'] - $before[ $key ]['value'];
+					$metrics[ $key ]['change']    = $delta;
+					$metrics[ $key ]['direction'] = $delta < 0 ? 'down' : ( $delta > 0 ? 'up' : 'same' );
+				}
+			}
+		}
+
+		// Backlog age bands: one unit and one status for the group.
+		$unit    = ( $row['backlog_unit'] ?? GCO_PD_Validator::UNIT_COUNT ) === GCO_PD_Validator::UNIT_PERCENT ? GCO_PD_Validator::UNIT_PERCENT : GCO_PD_Validator::UNIT_COUNT;
+		$status  = $row['backlog_status'] ?? GCO_PD_Validator::STATUS_NOT_PROVIDED;
+		$bands   = array();
+		$given   = 0;
+		$sum     = 0;
+		$usable  = in_array( $status, array( GCO_PD_Validator::STATUS_ACTUAL, GCO_PD_Validator::STATUS_ESTIMATE ), true );
+		foreach ( GCO_PD_Validator::BACKLOG_BANDS as $column => $label ) {
+			$raw   = $row[ $column ] ?? null;
+			$value = ( $usable && null !== $raw && '' !== $raw ) ? ( GCO_PD_Validator::UNIT_PERCENT === $unit ? round( (float) $raw, 2 ) : (int) $raw ) : null;
+			if ( null !== $value ) {
+				++$given;
+				$sum += $value;
+			}
+			$bands[] = array(
+				'column' => $column,
+				'label'  => $label,
+				'value'  => $value,
+			);
+		}
+		$backlog = $given ? array(
+			'unit'   => $unit,
+			'status' => $status,
+			'bands'  => $bands,
+			// Counts can be totalled; percentages are only ever shown as given.
+			'total'  => GCO_PD_Validator::UNIT_COUNT === $unit ? $sum : null,
+		) : null;
+
+		$period   = isset( $row['volumes_period'] ) && '' !== trim( (string) $row['volumes_period'] ) ? trim( (string) $row['volumes_period'] ) : null;
+		$standard = isset( $row['standard_text'] ) && '' !== trim( (string) $row['standard_text'] ) ? trim( (string) $row['standard_text'] ) : null;
+
+		if ( ! $any && ! $backlog && ! $standard ) {
+			return null;
+		}
+		return array(
+			'period'   => $period,
+			'standard' => $standard,
+			'metrics'  => $metrics,
+			'backlog'  => $backlog,
+		);
+	}
+
+	/**
+	 * National figures for the extra FOI metrics, each department counted once.
+	 *
+	 * @param array $current  slug => current data (with 'extra').
+	 * @param array $group_of slug => shared group key.
+	 * @return array<string,array>
+	 */
+	private static function national_extras( array $current, array $group_of ) {
+		$out = array();
+		foreach ( array_keys( GCO_PD_Validator::FOI_EXTRA_METRICS ) as $key ) {
+			$items     = array();
+			$estimates = array();
+			foreach ( $current as $slug => $data ) {
+				$metric = $data['extra']['metrics'][ $key ] ?? null;
+				if ( $metric && self::usable( $metric ) ) {
+					$items[ $slug ]     = $metric['value'];
+					$estimates[ $slug ] = GCO_PD_Validator::STATUS_ESTIMATE === $metric['status'];
+				}
+			}
+			$unique    = self::unique_departments( $items, $group_of );
+			$values    = array();
+			$highest   = null;
+			$n_estimate = 0;
+			foreach ( $unique['keys'] as $slug ) {
+				$values[] = $items[ $slug ];
+				$n_estimate += $estimates[ $slug ] ? 1 : 0;
+				if ( null === $highest || $items[ $slug ] > $highest['value'] ) {
+					$highest = array(
+						'slug'  => $slug,
+						'value' => $items[ $slug ],
+					);
+				}
+			}
+			$described            = self::describe( $values, $n_estimate, null );
+			$described['highest'] = $highest;
+			$described['n_forces'] = count( $items );
+			$described['merged']   = $unique['merged'];
+			$out[ $key ]           = $described;
+		}
+		return $out;
 	}
 
 	/* -------------------------------------------------------------------- Helpers */

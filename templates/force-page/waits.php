@@ -38,6 +38,10 @@ defined( 'ABSPATH' ) || exit;
 		</div>
 	</header>
 
+	<?php if ( ! empty( $shared ) ) : ?>
+		<p class="gco-pd-fnote gco-pd-fshared"><?php echo GCO_PD_Icons::get( 'users' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> <?php echo esc_html( $shared['text'] ); ?></p>
+	<?php endif; ?>
+
 	<?php if ( $empty ) : ?>
 		<p class="gco-pd-empty"><?php echo esc_html( sprintf( 'We have not yet received a Freedom of Information response from %s. This section will update when we do.', $name ) ); ?></p>
 	<?php else : ?>

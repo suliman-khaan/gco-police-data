@@ -62,6 +62,39 @@ $gco_url = static function ( $page, array $args = array() ) {
 	</section>
 
 	<section>
+		<h2>Extra figures: applications, backlog and service standards</h2>
+		<p>From the 2026-11 round the FOI letters also ask about application volumes, outstanding applications, backlog ages and service standards. They are in the template as the <strong>blue columns</strong> on the "FOI Data" sheet, and on the second tab of the round editor ("Applications, backlog &amp; standards"). They are all optional: leave them blank when a force did not answer, and older spreadsheets without them still upload.</p>
+		<ul>
+			<li><strong>Applications received / completed</strong> and the period they cover (for example "12 months to 31/03/2026").</li>
+			<li><strong>Outstanding applications</strong> and the <strong>oldest outstanding</strong> one, in days.</li>
+			<li><strong>Backlog age</strong>: how many outstanding applications have waited up to 3 months, 3&ndash;6, 6&ndash;12 and over 12 months. The four cells share one status.</li>
+			<li><strong>Service standard</strong>: the force's own target in its words and in days, and the percentage of applications that met it.</li>
+		</ul>
+		<p><strong>Nothing is shown to visitors until you switch it on.</strong> Under <a href="<?php echo $gco_url( GCO_PD_Admin::SLUG_SETTINGS ); ?>">Settings</a> there is one tick-box each for volumes, outstanding applications, backlog age and service standards. The figures are stored from the first round that includes them, so you can decide later. A force page then gets an "Applications, Backlog &amp; Service Standards" section, and the portal stat cards <code>outstanding</code> and <code>standard</code> become available.</p>
+	</section>
+
+	<section>
+		<h2>When a force gives percentages</h2>
+		<ul>
+			<li>For the backlog, set <strong>Backlog unit</strong> to <em>Percentage</em> and type the percentages (for example 55, 25, 15, 5). They should add up to about 100; you get a warning if they do not.</li>
+			<li>Percentages are shown as percentages, with a note that the force gave them that way. They are <strong>never added to numbers</strong>, and never used in totals.</li>
+			<li>"Met the service standard (%)" is always a percentage. Type 82 or 82%. A value of 1 or less is read as a fraction (0.82 = 82%), and the import preview tells you when it did that.</li>
+			<li>If a force gives a percentage for any other figure, leave that figure blank, put its wording in Notes and let your developer know so the form can be extended.</li>
+		</ul>
+	</section>
+
+	<section>
+		<h2>Forces that share a licensing department</h2>
+		<p>Some forces run one firearms licensing department together and give one combined set of figures.</p>
+		<ol>
+			<li>Under <a href="<?php echo $gco_url( GCO_PD_Admin::SLUG_FORCES ); ?>">Forces</a>, type the same name in <strong>Shared department</strong> for each of them (for example "Warwickshire &amp; West Mercia"), and save.</li>
+			<li>Enter the <strong>same combined figures against each force</strong>, as normal: one row per force in the spreadsheet or the round editor.</li>
+			<li>The national totals and averages then count the shared figure <strong>once</strong>, so nothing is double counted. Each force still has its own page, its own row in the leaderboards, and a note saying it shares a department.</li>
+		</ol>
+		<p class="description">If the forces in a group give <em>different</em> figures, they are treated as separate figures and all of them count. The import preview warns when forces in a shared department disagree, in case it is a typing slip.</p>
+	</section>
+
+	<section>
 		<h2>Force pages</h2>
 		<p>Each force page has a design that is the same for every force. The figures fill in on their own; the <strong>written content</strong> (contact details, GP medical providers, the description of the area, applicant quotes and FAQs) is edited under <a href="<?php echo $gco_url( GCO_PD_Admin::SLUG_PAGES ); ?>">Force Pages</a>.</p>
 		<ol>

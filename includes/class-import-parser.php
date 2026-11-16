@@ -45,6 +45,26 @@ final class GCO_PD_Import_Parser {
 		'sg_holders_status'  => 'Shotgun Holders Status',
 		'fac_holders'        => 'Firearm Certificate Holders',
 		'fac_holders_status' => 'Firearm Holders Status',
+		'apps_received'           => 'Applications Received',
+		'apps_received_status'    => 'Applications Received Status',
+		'apps_completed'          => 'Applications Completed',
+		'apps_completed_status'   => 'Applications Completed Status',
+		'volumes_period'          => 'Applications Period',
+		'outstanding'             => 'Outstanding Applications',
+		'outstanding_status'      => 'Outstanding Applications Status',
+		'oldest_days'             => 'Oldest Outstanding (days)',
+		'oldest_days_status'      => 'Oldest Outstanding Status',
+		'backlog_unit'            => 'Backlog Unit',
+		'backlog_m0_3'            => 'Backlog Up to 3 Months',
+		'backlog_m3_6'            => 'Backlog 3 to 6 Months',
+		'backlog_m6_12'           => 'Backlog 6 to 12 Months',
+		'backlog_m12_plus'        => 'Backlog Over 12 Months',
+		'backlog_status'          => 'Backlog Status',
+		'standard_text'           => 'Service Standard (wording)',
+		'standard_days'           => 'Service Standard (days)',
+		'standard_days_status'    => 'Service Standard Status',
+		'standard_met_pct'        => 'Met Service Standard (%)',
+		'standard_met_pct_status' => 'Met Service Standard Status',
 		'notes'              => 'Original Response / Notes',
 		'pdf_file'           => 'PDF File Name',
 	);
@@ -54,7 +74,33 @@ final class GCO_PD_Import_Parser {
 	 *
 	 * @var string[]
 	 */
-	const FOI_OPTIONAL = array( 'foi_ref', 'response_date', 'notes', 'pdf_file' );
+	const FOI_OPTIONAL = array(
+		'foi_ref',
+		'response_date',
+		'notes',
+		'pdf_file',
+		// Added for the 2026-11 round: older spreadsheets without these columns still import.
+		'apps_received',
+		'apps_received_status',
+		'apps_completed',
+		'apps_completed_status',
+		'volumes_period',
+		'outstanding',
+		'outstanding_status',
+		'oldest_days',
+		'oldest_days_status',
+		'backlog_unit',
+		'backlog_m0_3',
+		'backlog_m3_6',
+		'backlog_m6_12',
+		'backlog_m12_plus',
+		'backlog_status',
+		'standard_text',
+		'standard_days',
+		'standard_days_status',
+		'standard_met_pct',
+		'standard_met_pct_status',
+	);
 
 	/**
 	 * NPCC Data sheet: field key => exact header in the agreed template.
@@ -220,6 +266,9 @@ final class GCO_PD_Import_Parser {
 			$data['response_date'] = $date;
 			$data['foi_ref']       = self::to_text( $raw['foi_ref'] );
 			$data['notes']         = self::to_text( $raw['notes'] );
+			$data['volumes_period'] = self::to_text( $raw['volumes_period'] );
+			$data['standard_text']  = self::to_text( $raw['standard_text'] );
+			$data['backlog_unit']   = self::to_text( $raw['backlog_unit'] );
 			unset( $data['round'], $data['force'], $data['pdf_file'] );
 			$pdf = self::to_text( $raw['pdf_file'] );
 			$pct = null;
