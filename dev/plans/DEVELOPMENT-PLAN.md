@@ -81,11 +81,11 @@ Each milestone = one or more feature branches → merged to `development` → ta
 - **Done when:** every shortcode renders on a test page with fixture data, on desktop and mobile, with no PHP notices and nothing enqueued on non-police pages.
 
 ### M5 — Portal page rebuild · `feature/m5-portal` · 1.5–2 days
-- [ ] New **draft** page built in WPBakery, matching the client mockup section by section (spec §7 order); live `/police-firearms-licensing` untouched
-- [ ] Reuse the blog template's carousel for Applications & Install posts
-- [ ] FAQs + FAQPage schema (only if the SEO plugin doesn't already output it)
-- [ ] Placeholder copy where the client hasn't supplied intro / "How we research" / FAQs
-- **Done when:** client signs off the draft on staging.
+- [x] New **draft** page built in WPBakery, matching the client mockup section by section (spec §7 order); live `/police-firearms-licensing` untouched — draft page ID 9795, slug `police-firearms-licensing-draft`
+- [x] Reuse the blog template's carousel for Applications & Install posts — `porto_tb_posts`, pinned to the category's current 2 posts by ID; switch to the `tax`/`terms` filter once there are more
+- [x] FAQs + FAQPage schema (only if the SEO plugin doesn't already output it) — confirmed Yoast only emits FAQ schema for its own block, not `vc_toggle`; added `[gco_police_faq_schema]`
+- [x] Placeholder copy where the client hasn't supplied intro / "How we research" / FAQs — marked inline with `<!-- GCO Police Data: placeholder copy, pending client review -->`
+- **Done when:** client signs off the draft on staging — **open**, needs staging access and client review (§7.5).
 
 ### M6 — Force page template & migration · `feature/m6-force-pages` · 2 days
 - [ ] Force page layout: waiting times + badges + change, rank, national context, trend table + chart, last updated / source
