@@ -224,6 +224,7 @@ final class GCO_PD_Calculator {
 				'round'         => $label,
 				'stale'         => $label !== $latest_label,
 				'response_date' => $row['response_date'] ?? null,
+				'foi_ref'       => isset( $row['foi_ref'] ) && '' !== $row['foi_ref'] ? (string) $row['foi_ref'] : null,
 				'pdf_id'        => empty( $row['pdf_id'] ) ? null : (int) $row['pdf_id'],
 				'metrics'       => $metrics,
 				'coverage'      => self::coverage( $metrics ),

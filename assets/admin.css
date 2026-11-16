@@ -39,3 +39,28 @@
 .gco-pd-savebar { position: sticky; top: 32px; z-index: 5; background: #f0f0f1; margin: 0; padding: 8px 0; }
 .gco-pd-counts { display: flex; gap: 8px; flex-wrap: wrap; }
 .gco-pd-state-error td { background: #fff5f5 !important; }
+
+/* Force page editor */
+.gco-pd-profile { max-width: 1000px; }
+.gco-pd-tabpanel { background: #fff; border: 1px solid #c3c4c7; border-top: 0; padding: 8px 20px 16px; }
+.gco-pd-tabpanel[hidden] { display: none; }
+.gco-pd-field { margin: 16px 0; }
+.gco-pd-field__label { display: block; font-weight: 600; margin-bottom: 6px; }
+.gco-pd-field .description { margin-top: 4px; }
+.gco-pd-field textarea.large-text { max-width: 100%; }
+.gco-pd-media { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.gco-pd-media__preview img { display: block; max-width: 220px; max-height: 120px; border: 1px solid #dcdcde; border-radius: 4px; }
+.gco-pd-repeater { border: 0; margin: 0; padding: 0; }
+.gco-pd-repeater__rows { margin: 8px 0; padding: 0; list-style: none; counter-reset: gco-row; }
+.gco-pd-repeater__row { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 10px; padding: 12px; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 4px; counter-increment: gco-row; }
+.gco-pd-repeater__row::before { content: counter(gco-row); flex: none; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; background: #064d49; color: #fff; font-size: 12px; font-weight: 600; }
+.gco-pd-repeater__fields { flex: 1 1 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 12px; }
+.gco-pd-repeater__field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 600; }
+.gco-pd-repeater__field.is-wide { grid-column: 1 / -1; }
+.gco-pd-repeater__field em { font-weight: 400; color: #646970; }
+.gco-pd-repeater__field input, .gco-pd-repeater__field textarea { width: 100%; font-weight: 400; }
+.gco-pd-repeater__tools { flex: none; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.gco-pd-pages td, .gco-pd-pages th { vertical-align: middle; }
+.gco-pd-yes { color: #0a5b27; font-weight: 700; }
+.gco-pd-no { color: #8c8f94; }
+.gco-pd-help-inline { max-width: 900px; color: #50575e; }

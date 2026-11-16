@@ -214,6 +214,24 @@ final class GCO_PD_WPBakery {
 				'description' => 'This force against the national average',
 				'params'      => array( self::force() ),
 			),
+			'gco_force_page'           => array(
+				'name'        => 'Force page (full template)',
+				'description' => 'The whole force page from the force profile and data',
+				'params'      => array(
+					self::force(),
+					array(
+						'type'        => 'dropdown',
+						'param_name'  => 'part',
+						'heading'     => 'Part',
+						'description' => 'Put "Hero" in a full-width row and "Body" in a normal row, or use "Everything".',
+						'value'       => array(
+							'Everything' => 'all',
+							'Hero'       => 'hero',
+							'Body'       => 'body',
+						),
+					),
+				),
+			),
 			'gco_force_updated'        => array(
 				'name'        => 'Force last updated',
 				'description' => 'Last updated and source line',

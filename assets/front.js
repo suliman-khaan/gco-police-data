@@ -258,7 +258,36 @@
 		} );
 	}
 
+	/* -------------------------------------------------------- Force page nav */
+	function initFnav( nav ) {
+		var links = Array.prototype.slice.call( nav.querySelectorAll( 'a[href^="#"]' ) );
+		if ( ! links.length || ! ( 'IntersectionObserver' in window ) ) {
+			return;
+		}
+		var byId = {};
+		links.forEach( function ( link ) {
+			var target = document.getElementById( link.getAttribute( 'href' ).slice( 1 ) );
+			if ( target ) {
+				byId[ target.id ] = link;
+			}
+		} );
+		var observer = new IntersectionObserver( function ( entries ) {
+			entries.forEach( function ( entry ) {
+				if ( entry.isIntersecting && byId[ entry.target.id ] ) {
+					links.forEach( function ( link ) {
+						link.removeAttribute( 'aria-current' );
+					} );
+					byId[ entry.target.id ].setAttribute( 'aria-current', 'true' );
+				}
+			} );
+		}, { rootMargin: '-30% 0px -60% 0px' } );
+		Object.keys( byId ).forEach( function ( id ) {
+			observer.observe( document.getElementById( id ) );
+		} );
+	}
+
 	function ready() {
+		document.querySelectorAll( '[data-gco-fnav]' ).forEach( initFnav );
 		document.querySelectorAll( '[data-gco-search]' ).forEach( initSearch );
 		document.querySelectorAll( '[data-gco-tabs]' ).forEach( initTabs );
 		document.querySelectorAll( '[data-gco-az]' ).forEach( initAz );

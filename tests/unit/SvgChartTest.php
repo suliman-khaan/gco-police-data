@@ -85,4 +85,25 @@ final class SvgChartTest extends TestCase {
 		$args = array( array( 'Wait' => array( 1, 2 ) ), array( 'A', 'B' ) );
 		$this->assertSame( GCO_PD_SVG_Chart::line( ...$args ), GCO_PD_SVG_Chart::line( ...$args ) );
 	}
+	public function test_bars_skip_when_nothing_to_draw(): void {
+		$this->assertSame( '', GCO_PD_SVG_Chart::bars( array() ) );
+		$this->assertSame( '', GCO_PD_SVG_Chart::bars( array( 'June 2026' => null ) ) );
+	}
+
+	public function test_bars_are_well_formed_and_mark_missing_values(): void {
+		$svg = GCO_PD_SVG_Chart::bars(
+			array(
+				'June 2025' => null,
+				'Dec 2025 & co' => 70,
+				'June 2026' => 53,
+			),
+			array( 'title' => 'Waits', 'unit' => 'days', 'axis_label' => 'Days' )
+		);
+		$this->assertNotFalse( simplexml_load_string( $svg ) );
+		$this->assertSame( 2, substr_count( $svg, '<rect ' ) );
+		$this->assertStringContainsString( 'Not provided', $svg );
+		$this->assertStringContainsString( 'Dec 2025 &amp; co', $svg );
+		$this->assertStringContainsString( '53 days', $svg );
+		$this->assertStringContainsString( '#0f6b3f', $svg ); // Latest bar highlighted.
+	}
 }

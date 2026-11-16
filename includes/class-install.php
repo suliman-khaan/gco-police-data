@@ -15,7 +15,7 @@ final class GCO_PD_Install {
 	/**
 	 * Current schema version. Bump when the table definitions below change.
 	 */
-	const DB_VERSION = '2';
+	const DB_VERSION = '3';
 
 	/**
 	 * Option holding the installed schema version.
@@ -30,7 +30,7 @@ final class GCO_PD_Install {
 	/**
 	 * Returns a full, prefixed table name.
 	 *
-	 * @param string $name One of forces, rounds, responses, npcc_quarters, npcc.
+	 * @param string $name One of forces, rounds, responses, npcc_quarters, npcc, force_profiles.
 	 * @return string
 	 */
 	public static function table( $name ) {
@@ -59,11 +59,12 @@ final class GCO_PD_Install {
 		}
 		self::create_tables();
 		self::add_capability();
+		self::link_force_pages();
 		update_option( self::DB_VERSION_OPTION, self::DB_VERSION, true );
 	}
 
 	/**
-	 * Creates or updates the five custom tables with dbDelta().
+	 * Creates or updates the six custom tables with dbDelta().
 	 *
 	 * dbDelta() is picky: one field per line, two spaces after PRIMARY KEY, KEY (not INDEX).
 	 * It does not create foreign keys, so integrity is enforced in GCO_PD_Repository.
@@ -78,6 +79,7 @@ final class GCO_PD_Install {
 		$resp    = self::table( 'responses' );
 		$quarter = self::table( 'npcc_quarters' );
 		$npcc    = self::table( 'npcc' );
+		$profile = self::table( 'force_profiles' );
 		$status  = "ENUM('actual','estimate','not_provided') NOT NULL DEFAULT 'not_provided'";
 
 		$sql = array();
@@ -159,6 +161,14 @@ final class GCO_PD_Install {
   KEY force_id (force_id)
 ) {$charset};";
 
+		$sql[] = "CREATE TABLE {$profile} (
+  force_id BIGINT UNSIGNED NOT NULL,
+  data LONGTEXT NOT NULL,
+  updated_by BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  updated_at DATETIME NOT NULL,
+  PRIMARY KEY  (force_id)
+) {$charset};";
+
 		foreach ( $sql as $statement ) {
 			dbDelta( $statement );
 		}
@@ -206,7 +216,7 @@ final class GCO_PD_Install {
 	public static function link_force_pages() {
 		global $wpdb;
 		$table = self::table( 'forces' );
-		$rows  = $wpdb->get_results( "SELECT id, slug FROM {$table} WHERE page_id IS NULL" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows  = $wpdb->get_results( "SELECT id, slug FROM {$table} WHERE page_id IS NULL OR page_id = 0" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		foreach ( (array) $rows as $row ) {
 			$candidates = apply_filters(
@@ -216,6 +226,7 @@ final class GCO_PD_Install {
 					$row->slug . '-police',
 					$row->slug . '-firearms-licensing',
 					$row->slug . '-police-firearms-licensing',
+					str_replace( '-and-', '-', $row->slug ) . '-police-firearms-licensing',
 				),
 				$row->slug
 			);
