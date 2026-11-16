@@ -95,6 +95,18 @@ final class GCO_PD_Format {
 	}
 
 	/**
+	 * Force name without its service suffix, for tight lists: "Dorset Police" => "Dorset",
+	 * "Metropolitan Police Service" => "Metropolitan", "Cumbria Constabulary" => "Cumbria".
+	 *
+	 * @param string $name Full force name.
+	 * @return string
+	 */
+	public static function short_name( $name ) {
+		$short = preg_replace( '/\s+(Police Service|Police|Constabulary)$/i', '', (string) $name );
+		return '' === trim( (string) $short ) ? (string) $name : $short;
+	}
+
+	/**
 	 * "2026-06" => "June 2026".
 	 *
 	 * @param string|null $label Round label.
