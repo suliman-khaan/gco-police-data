@@ -87,11 +87,42 @@ Each milestone = one or more feature branches → merged to `development` → ta
 - [x] Placeholder copy where the client hasn't supplied intro / "How we research" / FAQs — marked inline with `<!-- GCO Police Data: placeholder copy, pending client review -->`
 - **Done when:** client signs off the draft on staging — **open**, needs staging access and client review (§7.5).
 
-### M6 — Force page template & migration · `feature/m6-force-pages` · 2 days
-- [ ] Force page layout: waiting times + badges + change, rank, national context, trend table + chart, last updated / source
-- [ ] Migrate the 20 existing force pages: replace the hard-coded figures with shortcodes, keep the written content; check each page's slug ↔ force link
-- [ ] Back up each page (revision / export) before editing; do it on staging first
-- **Done when:** all 20 pages render plugin figures, written content unchanged, links from the portal resolve.
+### M6 — Force page template & migration · `feature/m6-force-pages` · 4–5 days (was 2)
+
+**Decision (16 Nov 2026):** every force page is rendered by **one plugin template**, following the client's force-page mockup. Per-force text lives in fields on the force record, not in WPBakery layouts. Not a custom post type: the existing WordPress pages stay as containers, so their URLs, titles, Yoast meta and internal links are unchanged. The page content becomes `[gco_force_page]`. A layout change is made once, in the template, and applies to all 43 forces.
+
+**Mockup sections → source of each**
+
+| # | Section | Source |
+|---|---|---|
+| 1 | Breadcrumb + hero: "{Force} Firearms Licensing", intro, background photo, crest | Breadcrumb from Yoast when present, else our own; intro/photo/crest = **force fields** (photo falls back to a default in Settings) |
+| 2 | Jump nav: Contact · GP Medical · Recent Comments · Current Waiting Times · FAQs | Generated; a tab is dropped when its section is empty |
+| 3 | Sidebar: Contact Details & General Information | **Force fields**: unit name, address, phone, email, licensing webpage URL |
+| 4 | Sidebar: GP Medical Assessments | **Force field** (intro + checklist), falling back to a shared default text in Settings |
+| 5 | "Firearms Licensing in {area}": area description | **Force field** (text) + auto sentence from FOI holders ("5,670 shotgun and 1,684 firearm certificate holders…") |
+| 6 | Previous and Current Applicant Reports (3 quote cards) | **Force field**, repeatable: quote, application type, month, source |
+| 7 | Current Waiting Times: FOI ref + date, 5-row table | Plugin data (latest FOI response) |
+| 8 | Reported Shotgun Grant Times: previous vs latest round bars + change box | Plugin data. New **horizontal bar chart** (inline SVG, accessible table); hidden with fewer than 2 rounds |
+| 9 | National Firearms Licensing Overview: rank X/43, holders, received, completed | Plugin data (latest NPCC quarter) |
+| 10 | Preparing for Your Firearms Security Inspection (image + "View Gun Cabinets") | **Shared** text/image/button in Settings, with `{force}` placeholder |
+| 11 | Frequently Asked Questions – {Force} (two columns) | **Force field**, repeatable Q/A; one FAQPage JSON-LD (reuse the portal FAQ markup) |
+| 12 | Related Guides and Articles | Reuse `[gco_police_guides]`; IDs from Settings, overridable per force |
+
+**Tasks**
+- [ ] **Data:** new table `gco_force_profiles` (one row per force: text fields, attachment IDs, `quotes` and `faqs` as JSON, `updated_at`). The `gco_forces` table stays lean, and `DB_VERSION` goes to 3.
+- [ ] **Admin:** Police Data → Forces → *Edit* gets a tabbed profile form (Hero, Contact, GP Medical, Area, Applicant reports, FAQs, Related guides). It has media pickers, add/remove/reorder rows for quotes and FAQs, a cap + nonce check, sanitising per field type, and a "View page" link. Saving purges that force page's cache.
+- [ ] **Settings:** default hero photo, default GP medical text, the shared security-inspection block, and default related-guide IDs.
+- [ ] **Render:** `[gco_force_page force="auto"]` builds the layout from parts in `templates/force-page/*.php`, which a theme can override like the other templates. Each part hides itself when it has no data, so there are no empty boxes. The existing small `gco_force_*` shortcodes stay for one-off use.
+- [ ] **Assets:** force-page CSS added to `front.css` (sidebar layout, quote cards, bar chart, jump nav). Mobile layout: the sidebar moves below the main content.
+- [ ] **Linking:** add the `hampshire-isle-of-wight` slug variant. 20 of 21 existing pages auto-link today; Hampshire misses because its page slug drops "and". Forces screen gets a "no page linked" filter.
+- [ ] **Migration tool:** WP-CLI `wp gco-pd force-pages migrate [--force=slug] [--dry-run]`.
+  - Backs up each page's current content to a revision and to post meta `_gco_pd_pre_m6_content`.
+  - Pulls what it can from the existing WPBakery text into the profile fields (contact block, area paragraph, FAQ toggles) and prints a per-page report of what was found and what needs a manual check.
+  - Swaps the content to `[gco_force_page]` only without `--dry-run`. `wp gco-pd force-pages restore --force=slug` puts the old content back.
+- [ ] **Rollout:** migrate **one page (Derbyshire)** on live as a draft copy → client sign-off → the remaining 20 → review each against its old version.
+- [ ] **The 22 forces without a page:** create draft pages with `[gco_force_page]` so they show figures and contact details once their profile is filled. They are published only when the client approves (see §7).
+- [ ] **Tests:** unit tests for profile sanitising/serialising, the bar-chart SVG and the migration extractor (fixtures: 2–3 real page contents).
+- **Done when:** all 21 existing pages render the template with their original text carried into fields (nothing lost, the report reviewed); each page's sections hide cleanly when empty; the portal, search and A–Z link to every force with a page; and the client has signed off Derbyshire before the batch.
 
 ### M7 — Real data, QA & launch · `release/1.0.0` · 2 days
 - [ ] Load the client's real FOI data (arrives end of November) + any earlier rounds/quarters for trends
@@ -108,9 +139,12 @@ Assumes work starts **Mon 16 Nov 2026**; the FOI data arrives ~**30 Nov**.
 |---|---|---|---|
 | 1 | 16–22 Nov | M0, M1, M2 | `v0.1.0` (admin + import on staging) |
 | 2 | 23–29 Nov | M3, M4, M5 started | `v0.2.0` (shortcodes on staging) |
-| 3 | 30 Nov–6 Dec | M5 sign-off, M6, M7 | `v1.0.0` go-live |
+| 3 | 30 Nov–6 Dec | M5 sign-off, M6 (template, admin, migration tool, Derbyshire pilot) | `v0.3.0` (force template on live as draft) |
+| 4 | 7–13 Dec | M6 batch migration, M7 | `v1.0.0` go-live |
 
-Buffer: M5 sign-off and the data arriving late are the two things most likely to slip. M6 doesn't depend on the portal sign-off, so it can start in parallel.
+Buffer: M5 sign-off and the data arriving late are the two things most likely to slip. M6 doesn't depend on the portal sign-off, so it can start in parallel. The move to a plugin force-page template (16 Nov) adds 2–3 days to M6 and pushes go-live by about a week; flag it to the client as a scope change.
+
+Testing environment: the staging copy has no `uploads/`, so images (hero photos, guide thumbnails, crests) only show on live. Real-content testing happens on live with pages kept as drafts or backed up.
 
 ## 5. Spec review — decisions to confirm before/while coding
 
@@ -130,7 +164,8 @@ Buffer: M5 sign-off and the data arriving late are the two things most likely to
 |---|---|---|
 | Data arrives late / incomplete | Launch slips | Build & QA on fixtures; launch works with partial coverage (fallback + "Not provided") |
 | NPCC changes layout (grant/renewal split from Q1 2026/27) | Import breaks | Header-based mapping; unknown columns reported in preview, not fatal |
-| WPBakery page edits break existing layout | Client-visible regressions | Staging first, page backups, migrate one page and sign off before the other 19 |
+| Force-page migration loses written content | Client-visible regressions, SEO loss | Old content kept in a revision + `_gco_pd_pre_m6_content` meta; dry-run report per page; `restore` command; pilot on Derbyshire before the other 20 |
+| Extra M6 scope (profile fields, admin form) | Go-live slips ~1 week | Agreed 16 Nov; template parts ship incrementally, and sections hide when empty, so pages can go live before every field is filled |
 | Host lacks PHP 8.1 / `zip` | Plugin won't run | Pre-flight check in week 1; CSV fallback |
 | Scope creep (cabinet finder, comparison table, PDF AI) | Timeline | Already out of scope in the spec — quote separately |
 
@@ -141,4 +176,9 @@ Buffer: M5 sign-off and the data arriving late are the two things most likely to
 3. Earlier FOI rounds / NPCC quarters for trend history at launch?
 4. Portal copy (intro, "How we research", FAQs) — or we draft placeholders?
 5. *(new)* Is there a staging site on IONOS, and can we get WP admin + licensed Porto/WPBakery for local dev?
-6. *(new)* List / URLs of the 20 existing force pages to migrate.
+6. ~~List / URLs of the 20 existing force pages to migrate.~~ Found: 21 force pages on the site; 20 auto-link, and Hampshire needs a slug fix.
+7. *(new, M6)* Accept the force-page template scope change (+2–3 days, go-live ~13 Dec)?
+8. *(new, M6)* The 22 forces without a page: create them now (figures + contact details only) or later as content is written?
+9. *(new, M6)* Applicant quotes: where do they come from, and do we have permission to publish them with a source name?
+10. *(new, M6)* Police crests in the hero: confirm we may use them. Crests are protected marks, so the fallback is no crest.
+11. *(new, M6)* GP medical text: one shared text for all forces, or per-force wording?
