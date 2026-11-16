@@ -242,7 +242,77 @@ final class GCO_PD_Importer {
 				'data'       => $clean,
 			);
 		}
-		return self::warn_shared_mismatch( $out, array_diff( self::FOI_COMPARE, array( 'foi_ref', 'response_date', 'notes', 'pdf_id' ) ) );
+		$out = self::warn_shared_mismatch( $out, array_diff( self::FOI_COMPARE, array( 'foi_ref', 'response_date', 'notes', 'pdf_id' ) ) );
+		return self::warn_unmarked_twins( $out, array( 'apps_received', 'apps_completed', 'outstanding', 'sg_holders', 'fac_holders' ) );
+	}
+
+	/**
+	 * Safety net for a forgotten tick: forces that carry IDENTICAL large figures in the same round or quarter
+	 * are very probably one shared department entered twice. If they are not marked as sharing, say so on each
+	 * row, because the national totals would otherwise count that department twice. A warning only: it never
+	 * merges anything by itself (identical small numbers do happen between unrelated forces).
+	 *
+	 * @param array    $rows   Preview rows.
+	 * @param string[] $fields Count columns that identify a department's figures (not waiting times).
+	 * @return array Rows with warnings added.
+	 */
+	private static function warn_unmarked_twins( array $rows, array $fields ) {
+		$seen = array();
+		foreach ( $rows as $i => $row ) {
+			if ( empty( $row['force_id'] ) || 'error' === $row['state'] ) {
+				continue;
+			}
+			$values = array();
+			$big    = false;
+			foreach ( $fields as $field ) {
+				$value = $row['data'][ $field ] ?? null;
+				if ( null !== $value && '' !== $value ) {
+					$values[ $field ] = (string) (int) $value;
+					$big              = $big || (int) $value >= 100;
+				}
+			}
+			// Need at least two matching numbers, one of them sizeable, before two forces look like twins.
+			if ( count( $values ) < 2 || ! $big ) {
+				continue;
+			}
+			ksort( $values );
+			$force = GCO_PD_Repository::get_force( (int) $row['force_id'] );
+			$seen[ $row['period'] . '|' . md5( json_encode( $values ) ) ][] = array(
+				'index' => $i,
+				'group' => $force && ! empty( $force->shared_group ) ? (string) $force->shared_group : '',
+			);
+		}
+		foreach ( $seen as $twins ) {
+			if ( count( $twins ) < 2 ) {
+				continue;
+			}
+			// Count departments, not forces: forces marked as one group are one department.
+			$units   = array();
+			$in_group = array();
+			foreach ( $twins as $twin ) {
+				$units[] = '' !== $twin['group'] ? 'g:' . $twin['group'] : 'r:' . $twin['index'];
+				if ( '' !== $twin['group'] ) {
+					$in_group[ $twin['group'] ] = ( $in_group[ $twin['group'] ] ?? 0 ) + 1;
+				}
+			}
+			if ( count( array_unique( $units ) ) < 2 ) {
+				continue; // Everything here is already one marked department.
+			}
+			$names = array();
+			foreach ( $twins as $twin ) {
+				$names[] = $rows[ $twin['index'] ]['force_name'];
+			}
+			foreach ( $twins as $twin ) {
+				if ( '' !== $twin['group'] && $in_group[ $twin['group'] ] > 1 ) {
+					continue; // Properly marked with its partner: nothing to flag.
+				}
+				$rows[ $twin['index'] ]['warnings']['twins'] = sprintf(
+					'These forces have identical figures: %s. If they share a licensing department, mark them under Police Data > Forces > Shared department so the national totals count them once. If they are separate, ignore this.',
+					implode( ', ', $names )
+				);
+			}
+		}
+		return $rows;
 	}
 
 	/**
@@ -385,7 +455,8 @@ final class GCO_PD_Importer {
 				'data'       => $clean,
 			);
 		}
-		return self::warn_shared_mismatch( $out, GCO_PD_Validator::NPCC_COLUMNS );
+		$out = self::warn_shared_mismatch( $out, GCO_PD_Validator::NPCC_COLUMNS );
+		return self::warn_unmarked_twins( $out, array( 'total_holders', 'apps_received_12m', 'apps_completed_12m', 'completed_in_sla' ) );
 	}
 
 	/**
