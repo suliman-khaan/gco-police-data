@@ -120,7 +120,7 @@ Each milestone = one or more feature branches → merged to `development` → ta
   - Pulls what it can from the existing WPBakery text into the profile fields (contact block, area paragraph, FAQ toggles) and prints a per-page report of what was found and what needs a manual check.
   - Swaps the content to `[gco_force_page]` only without `--dry-run`. `wp gco-pd force-pages restore --force=slug` puts the old content back.
 - [ ] **Rollout:** migrate **one page (Derbyshire)** on live as a draft copy → client sign-off → the remaining 20 → review each against its old version.
-- [ ] **The 22 forces without a page:** create draft pages with `[gco_force_page]` so they show figures and contact details once their profile is filled. They are published only when the client approves (see §7).
+- **Out of scope (per the quote):** the ~22 forces that have no page today. The template and data cover them, so the client only needs to create a page, add `[gco_force_page]` and fill the profile fields. Creating and writing those pages is quoted separately if asked.
 - [ ] **Tests:** unit tests for profile sanitising/serialising, the bar-chart SVG and the migration extractor (fixtures: 2–3 real page contents).
 - **Done when:** all 21 existing pages render the template with their original text carried into fields (nothing lost, the report reviewed); each page's sections hide cleanly when empty; the portal, search and A–Z link to every force with a page; and the client has signed off Derbyshire before the batch.
 
@@ -178,7 +178,7 @@ Testing environment: the staging copy has no `uploads/`, so images (hero photos,
 5. *(new)* Is there a staging site on IONOS, and can we get WP admin + licensed Porto/WPBakery for local dev?
 6. ~~List / URLs of the 20 existing force pages to migrate.~~ Found: 21 force pages on the site; 20 auto-link, and Hampshire needs a slug fix.
 7. *(new, M6)* Accept the force-page template scope change (+2–3 days, go-live ~13 Dec)?
-8. *(new, M6)* The 22 forces without a page: create them now (figures + contact details only) or later as content is written?
+8. ~~The 22 forces without a page: create them now?~~ Decided: out of scope, the client adds them (quote: "adding the remaining forces is just the written content"). Note the quote says 20 existing pages, but 21 exist; confirm Hampshire is included.
 9. *(new, M6)* Applicant quotes: where do they come from, and do we have permission to publish them with a source name?
 10. *(new, M6)* Police crests in the hero: confirm we may use them. Crests are protected marks, so the fallback is no crest.
 11. *(new, M6)* GP medical text: one shared text for all forces, or per-force wording?
