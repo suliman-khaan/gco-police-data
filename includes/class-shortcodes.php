@@ -22,12 +22,15 @@ final class GCO_PD_Shortcodes {
 	 * @var array<string,string>
 	 */
 	const TAGS = array(
+		'gco_police_hero'          => 'hero',
 		'gco_police_search'        => 'search',
 		'gco_police_stats'         => 'stats',
 		'gco_police_leaderboard'   => 'leaderboard',
 		'gco_police_glance'        => 'glance',
 		'gco_police_waiting_table' => 'waiting_table',
 		'gco_police_az'            => 'az',
+		'gco_police_guides'        => 'guides',
+		'gco_police_research'      => 'research',
 		'gco_force_waiting_times'  => 'force_waiting_times',
 		'gco_force_rank'           => 'force_rank',
 		'gco_force_trend'          => 'force_trend',
@@ -41,7 +44,7 @@ final class GCO_PD_Shortcodes {
 	 *
 	 * @var string[]
 	 */
-	const INTERACTIVE = array( 'gco_police_search', 'gco_police_waiting_table', 'gco_police_az' );
+	const INTERACTIVE = array( 'gco_police_hero', 'gco_police_search', 'gco_police_leaderboard', 'gco_police_waiting_table', 'gco_police_az' );
 
 	/**
 	 * Waiting-time metrics shown on force pages and the portal.
@@ -57,11 +60,11 @@ final class GCO_PD_Shortcodes {
 	 */
 	const TABS = array(
 		'shotgun'    => array(
-			'label'   => 'Shotgun',
+			'label'   => 'Shotgun Grants',
 			'metrics' => array( 'sg_grant' ),
 		),
 		'firearm'    => array(
-			'label'   => 'Firearm',
+			'label'   => 'Firearm Grants',
 			'metrics' => array( 'fac_grant' ),
 		),
 		'renewals'   => array(
@@ -72,6 +75,19 @@ final class GCO_PD_Shortcodes {
 			'label'   => 'Variations',
 			'metrics' => array( 'variation' ),
 		),
+	);
+
+	/**
+	 * Plural phrases for "Top 5 forces for ...".
+	 *
+	 * @var array<string,string>
+	 */
+	const METRIC_PHRASES = array(
+		'sg_grant'  => 'shotgun certificate grants',
+		'fac_grant' => 'firearm certificate grants',
+		'sg_renew'  => 'shotgun certificate renewals',
+		'fac_renew' => 'firearm certificate renewals',
+		'variation' => 'certificate variations',
 	);
 
 	/**
@@ -147,11 +163,92 @@ final class GCO_PD_Shortcodes {
 	 */
 	public static function run( $method, $tag, array $atts, $content = '' ) {
 		self::enqueue( in_array( $tag, self::INTERACTIVE, true ) );
-		$callback = array( __CLASS__, 'sc_' . $method );
-		$html     = 'faq_schema' === $method
-			? (string) call_user_func( $callback, $atts, $content )
-			: (string) call_user_func( $callback, $atts );
-		return $html;
+		return (string) call_user_func( array( __CLASS__, 'sc_' . $method ), $atts, $content );
+	}
+
+	/**
+	 * Wraps a block in the portal's card: icon, title, subtitle and an optional header link.
+	 * With an empty title and no link the block is returned unwrapped.
+	 *
+	 * @param string $body  Block markup (already escaped).
+	 * @param array  $atts  Attributes with title, subtitle, link_url, link_text.
+	 * @param string $icon  Icon name.
+	 * @param string $mod   Modifier class suffix.
+	 * @param string $link  Ready-made header link markup, used instead of link_url (e.g. an expand button).
+	 * @return string
+	 */
+	private static function card( $body, array $atts, $icon, $mod, $link = '' ) {
+		$title = trim( (string) ( $atts['title'] ?? '' ) );
+		if ( '' === $link && '' !== (string) ( $atts['link_url'] ?? '' ) ) {
+			$link = '<a class="gco-pd-card__link" href="' . esc_url( $atts['link_url'] ) . '">' . esc_html( $atts['link_text'] ) . GCO_PD_Icons::get( 'arrow-right' ) . '</a>';
+		}
+		if ( '' === $title && '' === $link ) {
+			return $body;
+		}
+		return self::template(
+			'part-card',
+			array(
+				'title'    => $title,
+				'subtitle' => trim( (string) ( $atts['subtitle'] ?? '' ) ),
+				'icon'     => $icon,
+				'mod'      => $mod,
+				'link'     => $link,
+				'body'     => $body,
+			)
+		);
+	}
+
+	/**
+	 * Card attributes merged with a block's own defaults.
+	 *
+	 * @param array $defaults Block defaults, including its default title/subtitle.
+	 * @return array
+	 */
+	private static function with_card( array $defaults ) {
+		return array_merge(
+			array(
+				'title'     => '',
+				'subtitle'  => '',
+				'link_url'  => '',
+				'link_text' => '',
+			),
+			$defaults
+		);
+	}
+
+	/**
+	 * Header button that expands a list cut to its first rows.
+	 *
+	 * @param string $target Id of the element carrying data-gco-expand.
+	 * @param string $text   Button text.
+	 * @return string
+	 */
+	private static function expand_button( $target, $text ) {
+		return '<button type="button" class="gco-pd-card__link" data-gco-expand-toggle="' . esc_attr( $target ) . '" aria-controls="' . esc_attr( $target ) . '" aria-expanded="false">' . esc_html( $text ) . GCO_PD_Icons::get( 'arrow-right' ) . '</button>';
+	}
+
+	/**
+	 * Competition ranks (1, 2, 2, 4) for rows already sorted, keyed on $key; null values are unranked.
+	 *
+	 * @param array  $rows Sorted rows.
+	 * @param string $key  Sort value key.
+	 * @return array Rows with 'rank'.
+	 */
+	private static function rank_rows( array $rows, $key ) {
+		$rank = 0;
+		$prev = null;
+		foreach ( $rows as $i => $row ) {
+			if ( null === $row[ $key ] ) {
+				$rows[ $i ]['rank'] = null;
+				continue;
+			}
+			if ( $row[ $key ] !== $prev ) {
+				$rank = $i + 1;
+				$prev = $row[ $key ];
+			}
+			$rows[ $i ]['rank'] = $rank;
+		}
+		return $rows;
 	}
 
 	/**
@@ -329,6 +426,53 @@ final class GCO_PD_Shortcodes {
 	/* ------------------------------------------------------------------ Portal blocks */
 
 	/**
+	 * [gco_police_hero title="" image="123" placeholder="" browse_url="#browse" browse_text=""]Intro text[/gco_police_hero]
+	 *
+	 * @param array  $atts    Attributes. image = attachment id or URL.
+	 * @param string $content Intro text.
+	 * @return string
+	 */
+	public static function sc_hero( array $atts, $content = '' ) {
+		$atts = shortcode_atts(
+			array(
+				'title'       => 'Police Firearms Licensing – England & Wales',
+				'image'       => '',
+				'placeholder' => 'Search for your police force…',
+				'browse_url'  => '#browse',
+				'browse_text' => 'Browse all 43 police forces',
+			),
+			$atts,
+			'gco_police_hero'
+		);
+
+		$image = '';
+		if ( ctype_digit( (string) $atts['image'] ) ) {
+			$src   = wp_get_attachment_image_url( (int) $atts['image'], 'full' );
+			$image = $src ? $src : '';
+		} elseif ( '' !== $atts['image'] ) {
+			$image = $atts['image'];
+		}
+
+		$total = (int) ( self::snapshot()['total_forces'] ?? 0 );
+		return self::template(
+			'portal-hero',
+			array(
+				'title'  => $atts['title'],
+				'intro'  => trim( wp_strip_all_tags( (string) $content ) ),
+				'image'  => $image,
+				'search' => self::sc_search(
+					array(
+						'placeholder' => $atts['placeholder'],
+						'browse_url'  => $atts['browse_url'],
+						'browse_text' => $total ? str_replace( '43', (string) $total, $atts['browse_text'] ) : $atts['browse_text'],
+						'variant'     => 'hero',
+					)
+				),
+			)
+		);
+	}
+
+	/**
 	 * [gco_police_search browse_url="/police-firearms-licensing/#browse" placeholder="..."]
 	 *
 	 * @param array $atts Attributes.
@@ -337,9 +481,10 @@ final class GCO_PD_Shortcodes {
 	public static function sc_search( array $atts ) {
 		$atts     = shortcode_atts(
 			array(
-				'placeholder' => 'Search your police force, e.g. Derbyshire or GMP',
+				'placeholder' => 'Search for your police force…',
 				'browse_url'  => '',
-				'browse_text' => 'Browse all forces',
+				'browse_text' => 'Browse all police forces',
+				'variant'     => '',
 			),
 			$atts,
 			'gco_police_search'
@@ -376,7 +521,9 @@ final class GCO_PD_Shortcodes {
 	}
 
 	/**
-	 * [gco_police_stats cards="holders,reporting,fastest,average" metric="sg_grant"]
+	 * [gco_police_stats cards="certificates,received,completed,sla" metric="sg_grant"]
+	 *
+	 * Cards: certificates, holders, received, completed (alias: applications), sla, reporting, fastest, average.
 	 *
 	 * @param array $atts Attributes.
 	 * @return string
@@ -384,7 +531,7 @@ final class GCO_PD_Shortcodes {
 	public static function sc_stats( array $atts ) {
 		$atts     = shortcode_atts(
 			array(
-				'cards'  => 'holders,reporting,fastest,average',
+				'cards'  => 'certificates,received,completed,sla',
 				'metric' => 'sg_grant',
 			),
 			$atts,
@@ -400,40 +547,51 @@ final class GCO_PD_Shortcodes {
 		$npcc   = $snapshot['npcc']['national'];
 		$foi    = $snapshot['foi']['metrics'][ $metric ] ?? null;
 		$round  = $snapshot['latest_round'] ? GCO_PD_Format::round_label( $snapshot['latest_round']['label'] ) : '';
-		$quart  = $npcc ? 'NPCC ' . $npcc['quarter'] : '';
+		$source = $npcc ? 'NPCC firearms licensing statistics, ' . $npcc['quarter'] . ( $npcc['data_date'] ? ' (data to ' . GCO_PD_Format::date( $npcc['data_date'] ) . ')' : '' ) : '';
+		$period = $npcc ? 'Last 12 months to the end of ' . $npcc['quarter'] . '. Source: NPCC.' : '';
 
 		$cards = array();
 		foreach ( array_map( 'trim', explode( ',', $atts['cards'] ) ) as $card ) {
 			switch ( $card ) {
-				case 'holders':
-					$cards[] = array( 'Certificate holders', $npcc ? GCO_PD_Format::number( $npcc['holders'] ) : null, $quart );
+				case 'certificates':
+					$cards[] = array( 'users', $npcc ? GCO_PD_Format::number( $npcc['certificates'] ) : null, 'Total firearm and shotgun certificates in England & Wales', $source );
 					break;
+				case 'holders':
+					$cards[] = array( 'users', $npcc ? GCO_PD_Format::number( $npcc['holders'] ) : null, 'Firearm and shotgun certificate holders', $source );
+					break;
+				case 'received':
+					$cards[] = array( 'document', $npcc ? GCO_PD_Format::number( $npcc['received'] ) : null, 'Applications received (reporting period)', $period );
+					break;
+				case 'completed':
 				case 'applications':
-					$cards[] = array( 'Applications completed (12 months)', $npcc ? GCO_PD_Format::number( $npcc['completed'] ) : null, $quart );
+					$cards[] = array( 'check', $npcc ? GCO_PD_Format::number( $npcc['completed'] ) : null, 'Applications completed (reporting period)', $period );
 					break;
 				case 'sla':
-					$cards[] = array( 'Completed within 4 months', $npcc ? GCO_PD_Format::percent( $npcc['pct'] ) : null, $npcc ? 'National figure, target 80%' : '' );
+					$cards[] = array( 'chart', $npcc ? GCO_PD_Format::percent( $npcc['pct'] ) : null, 'Completed within NPCC service level agreement (SLA)', 'Share of applications completed within 4 months of receipt; the NPCC aspiration is 80%. ' . $source );
 					break;
 				case 'reporting':
 					$cards[] = array(
-						'Forces reporting',
+						'shield',
 						$snapshot['foi']['reporting'] ? $snapshot['foi']['reporting'] . ' of ' . $snapshot['total_forces'] : null,
+						'Forces reporting',
 						$round ? 'FOI responses, ' . $round : '',
 					);
 					break;
 				case 'fastest':
 					$fastest = $foi['fastest'] ?? null;
 					$cards[] = array(
-						'Fastest: ' . $label,
+						'clock',
 						$fastest ? GCO_PD_Format::days( $fastest['value'] ) : null,
-						$fastest ? $snapshot['forces'][ $fastest['slug'] ]['name'] : '',
+						'Fastest: ' . $label . ( $fastest ? ' (' . $snapshot['forces'][ $fastest['slug'] ]['name'] . ')' : '' ),
+						$round ? 'FOI responses, ' . $round : '',
 					);
 					break;
 				case 'average':
 					$cards[] = array(
-						'National average: ' . $label,
+						'calendar',
 						$foi && null !== $foi['average'] ? GCO_PD_Format::days( round( $foi['average'] ) ) : null,
-						$foi && $foi['n'] ? 'Across ' . $foi['n'] . ' forces' : '',
+						'National average: ' . $label,
+						$foi && $foi['n'] ? 'Across ' . $foi['n'] . ' forces that gave a figure' : '',
 					);
 					break;
 			}
@@ -442,17 +600,24 @@ final class GCO_PD_Shortcodes {
 	}
 
 	/**
-	 * [gco_police_leaderboard limit="5" more_url="" more_text=""]  (limit="all" for the full table)
+	 * [gco_police_leaderboard limit="5" more_url="" title="" subtitle=""]  (limit="all" shows every force)
+	 *
+	 * Every force is printed; rows past the limit stay hidden until "View full leaderboard" is pressed.
 	 *
 	 * @param array $atts Attributes.
 	 * @return string
 	 */
 	public static function sc_leaderboard( array $atts ) {
 		$atts     = shortcode_atts(
-			array(
-				'limit'     => '5',
-				'more_url'  => '',
-				'more_text' => 'See the full leaderboard',
+			self::with_card(
+				array(
+					'limit'       => '5',
+					'more_url'    => '',
+					'more_text'   => 'View full leaderboard',
+					'show_change' => 'no',
+					'title'       => 'National Police Force Leaderboard',
+					'subtitle'    => 'Police force performance based on the latest NPCC firearms licensing data.',
+				)
 			),
 			$atts,
 			'gco_police_leaderboard'
@@ -460,18 +625,15 @@ final class GCO_PD_Shortcodes {
 		$snapshot = self::snapshot();
 		$national = $snapshot['npcc']['national'];
 		if ( ! $national ) {
-			return self::empty_state();
+			return self::card( self::empty_state(), $atts, 'trophy', 'leaderboard' );
 		}
 
-		$all   = 'all' === strtolower( (string) $atts['limit'] );
-		$limit = $all ? PHP_INT_MAX : max( 1, (int) $atts['limit'] );
+		$all     = 'all' === strtolower( (string) $atts['limit'] );
+		$limit   = $all ? PHP_INT_MAX : max( 1, (int) $atts['limit'] );
+		$entries = array_merge( $snapshot['npcc']['leaderboard'], $snapshot['npcc']['unranked'] );
 
-		$entries = $snapshot['npcc']['leaderboard'];
-		if ( $all ) {
-			$entries = array_merge( $entries, $snapshot['npcc']['unranked'] );
-		}
 		$rows = array();
-		foreach ( array_slice( $entries, 0, $limit ) as $entry ) {
+		foreach ( $entries as $i => $entry ) {
 			$force  = $snapshot['forces'][ $entry['slug'] ] ?? array( 'page_id' => null );
 			$rows[] = array(
 				'rank'      => $entry['rank'],
@@ -482,35 +644,60 @@ final class GCO_PD_Shortcodes {
 				'pct'       => GCO_PD_Format::percent( $entry['pct'] ),
 				'class'     => GCO_PD_Format::sla_class( $entry['pct'], $entry['meets_sla'] ),
 				'change'    => GCO_PD_Format::sla_change( $entry['change_pp'] ),
+				'extra'     => $i >= $limit,
 			);
 		}
 
-		return self::template(
+		static $instance = 0;
+		++$instance;
+		$id         = 'gco-pd-leaders-' . $instance;
+		$expandable = ! $all && count( $rows ) > $limit;
+		$link       = '';
+		if ( '' !== $atts['more_url'] ) {
+			$link = '<a class="gco-pd-card__link" href="' . esc_url( $atts['more_url'] ) . '">' . esc_html( $atts['more_text'] ) . GCO_PD_Icons::get( 'arrow-right' ) . '</a>';
+		} elseif ( $expandable ) {
+			$link = self::expand_button( $id, $atts['more_text'] );
+		}
+
+		$body = self::template(
 			'portal-leaderboard',
 			array(
-				'rows'      => $rows,
-				'caption'   => 'Applications completed within 4 months of receipt, NPCC ' . $national['quarter'] . ( $national['data_date'] ? ', data to ' . GCO_PD_Format::date( $national['data_date'] ) : '' ),
-				'show_more' => ! $all && count( $entries ) > $limit && '' !== $atts['more_url'],
-				'more_url'  => $atts['more_url'],
-				'more_text' => $atts['more_text'],
-				'national'  => GCO_PD_Format::percent( $national['pct'] ),
+				'id'          => $id,
+				'rows'        => $rows,
+				'caption'     => 'Applications completed within 4 months of receipt, NPCC ' . $national['quarter'] . ( $national['data_date'] ? ', data to ' . GCO_PD_Format::date( $national['data_date'] ) : '' ),
+				'expandable'  => $expandable && '' === $atts['more_url'],
+				'limit'       => $limit,
+				'total'       => count( $rows ),
+				'show_change' => 'yes' === strtolower( (string) $atts['show_change'] ),
+				'national'    => GCO_PD_Format::percent( $national['pct'] ),
 			)
 		);
+		return self::card( $body, $atts, 'trophy', 'leaderboard', $link );
 	}
 
 	/**
-	 * [gco_police_glance metric="sg_grant"]
+	 * [gco_police_glance metric="sg_grant" limit="5"]
 	 *
 	 * @param array $atts Attributes.
 	 * @return string
 	 */
 	public static function sc_glance( array $atts ) {
-		$atts     = shortcode_atts( array( 'metric' => 'sg_grant' ), $atts, 'gco_police_glance' );
+		$atts     = shortcode_atts(
+			self::with_card(
+				array(
+					'metric'   => 'sg_grant',
+					'title'    => 'Reported Waiting Times at a Glance',
+					'subtitle' => 'Based on the latest FOI responses from police forces.',
+				)
+			),
+			$atts,
+			'gco_police_glance'
+		);
 		$metric   = in_array( $atts['metric'], self::WAIT_METRICS, true ) ? $atts['metric'] : 'sg_grant';
 		$snapshot = self::snapshot();
 		$ranking  = $snapshot['foi']['rankings'][ $metric ] ?? null;
 		if ( ! $ranking || ! $ranking['ranked'] ) {
-			return self::empty_state();
+			return self::card( self::empty_state(), $atts, 'clock', 'glance' );
 		}
 
 		$prepare = static function ( array $entries ) use ( $snapshot ) {
@@ -519,7 +706,8 @@ final class GCO_PD_Shortcodes {
 				$force = $snapshot['forces'][ $entry['slug'] ] ?? array( 'page_id' => null );
 				$out[] = array(
 					'rank'  => $entry['rank'],
-					'name'  => $entry['name'],
+					'name'  => GCO_PD_Format::short_name( $entry['name'] ),
+					'full'  => $entry['name'],
 					'url'   => GCO_PD_Shortcodes::force_url( $force ),
 					'days'  => GCO_PD_Format::days( $entry['days'] ),
 					'basis' => GCO_PD_Format::basis( $entry['status'] ),
@@ -528,33 +716,50 @@ final class GCO_PD_Shortcodes {
 			return $out;
 		};
 
-		return self::template(
+		$body = self::template(
 			'portal-glance',
 			array(
-				'label'    => GCO_PD_Format::METRIC_LABELS[ $metric ],
+				'phrase'   => self::METRIC_PHRASES[ $metric ],
 				'round'    => GCO_PD_Format::round_label( $snapshot['latest_round']['label'] ?? '' ),
 				'shortest' => $prepare( $ranking['shortest'] ),
 				'longest'  => $prepare( $ranking['longest'] ),
 				'ranked'   => $ranking['ranked'],
 			)
 		);
+		return self::card( $body, $atts, 'clock', 'glance' );
 	}
 
 	/**
-	 * [gco_police_waiting_table]
+	 * [gco_police_waiting_table limit="5"]  (limit="all" shows every force)
 	 *
 	 * @param array $atts Attributes.
 	 * @return string
 	 */
 	public static function sc_waiting_table( array $atts ) {
-		unset( $atts );
+		$atts     = shortcode_atts(
+			self::with_card(
+				array(
+					'limit'     => '5',
+					'more_text' => 'View full waiting times table',
+					'title'     => 'Firearms Licensing Waiting Times by Police Force',
+					'subtitle'  => 'Compare the latest reported processing times for certificate applications across all 43 forces.',
+				)
+			),
+			$atts,
+			'gco_police_waiting_table'
+		);
 		$snapshot = self::snapshot();
 		if ( ! $snapshot['foi']['reporting'] && ! array_filter( array_column( $snapshot['forces'], 'foi' ) ) ) {
-			return self::empty_state();
+			return self::card( self::empty_state(), $atts, 'calendar', 'waits' );
 		}
+		$atts['subtitle'] = str_replace( '43', (string) $snapshot['total_forces'], $atts['subtitle'] );
+
+		$all   = 'all' === strtolower( (string) $atts['limit'] );
+		$limit = $all ? PHP_INT_MAX : max( 1, (int) $atts['limit'] );
 
 		static $instance = 0;
 		++$instance;
+		$id = 'gco-pd-waits-' . $instance;
 
 		$tabs = array();
 		foreach ( self::TABS as $key => $tab ) {
@@ -564,12 +769,12 @@ final class GCO_PD_Shortcodes {
 				foreach ( $tab['metrics'] as $metric ) {
 					$cells[ $metric ] = self::figure( $force['foi']['metrics'][ $metric ] ?? null );
 				}
-				$first      = $force['foi']['metrics'][ $tab['metrics'][0] ] ?? null;
-				$rows[]     = array(
+				$first  = $force['foi']['metrics'][ $tab['metrics'][0] ] ?? null;
+				$rows[] = array(
 					'name'  => $force['name'],
 					'url'   => self::force_url( $force ),
 					'cells' => $cells,
-					'sort'  => ( $first && null !== $first['value'] ) ? $first['value'] : null,
+					'sort'  => ( $first && null !== $first['value'] ) ? (int) $first['value'] : null,
 					'stale' => ! empty( $force['foi']['stale'] ),
 					'round' => $force['foi']['round'] ?? null,
 				);
@@ -590,6 +795,10 @@ final class GCO_PD_Shortcodes {
 					return array( $a['sort'], $a['name'] ) <=> array( $b['sort'], $b['name'] );
 				}
 			);
+			$rows = self::rank_rows( $rows, 'sort' );
+			foreach ( $rows as $i => $row ) {
+				$rows[ $i ]['extra'] = $i >= $limit;
+			}
 
 			$labels = array();
 			$avgs   = array();
@@ -597,26 +806,106 @@ final class GCO_PD_Shortcodes {
 				$labels[ $metric ] = GCO_PD_Format::METRIC_LABELS[ $metric ];
 				$stat              = $snapshot['foi']['metrics'][ $metric ] ?? null;
 				$avgs[ $metric ]   = ( $stat && $stat['n'] ) ? array(
-					'text' => GCO_PD_Format::days( round( $stat['average'] ) ),
-					'n'    => $stat['n'],
+					'label' => GCO_PD_Format::METRIC_LABELS[ $metric ],
+					'text'  => GCO_PD_Format::days( round( $stat['average'] ) ),
+					'n'     => $stat['n'],
 				) : null;
 			}
 			$tabs[ $key ] = array(
 				'label'   => $tab['label'],
 				'columns' => $labels,
 				'rows'    => $rows,
-				'avgs'    => $avgs,
+				'avgs'    => array_filter( $avgs ),
 			);
 		}
 
-		return self::template(
+		$expandable = ! $all && count( $snapshot['forces'] ) > $limit;
+		$body       = self::template(
 			'portal-waiting-table',
 			array(
-				'id'    => 'gco-pd-waits-' . $instance,
-				'tabs'  => $tabs,
-				'round' => GCO_PD_Format::round_label( $snapshot['latest_round']['label'] ?? '' ),
+				'id'         => $id,
+				'tabs'       => $tabs,
+				'round'      => GCO_PD_Format::round_label( $snapshot['latest_round']['label'] ?? '' ),
+				'expandable' => $expandable,
+				'limit'      => $limit,
+				'total'      => count( $snapshot['forces'] ),
 			)
 		);
+		return self::card( $body, $atts, 'calendar', 'waits', $expandable ? self::expand_button( $id, $atts['more_text'] ) : '' );
+	}
+
+	/**
+	 * [gco_police_guides ids="4904,9750" category="" limit="4"]
+	 *
+	 * Cards for guide pages or posts: featured image, title and "Read the guide". ids keeps the given
+	 * order; without ids the latest posts in category (or overall) are used.
+	 *
+	 * @param array $atts Attributes.
+	 * @return string
+	 */
+	public static function sc_guides( array $atts ) {
+		$atts  = shortcode_atts(
+			self::with_card(
+				array(
+					'ids'       => '',
+					'category'  => '',
+					'limit'     => '4',
+					'read_text' => 'Read the guide',
+					'title'     => 'Application and Gun Cabinet Guides',
+					'subtitle'  => 'Practical advice to help with your firearms or shotgun certificate application and home security arrangements.',
+				)
+			),
+			$atts,
+			'gco_police_guides'
+		);
+		$limit = max( 1, min( 12, (int) $atts['limit'] ) );
+		$ids   = array_filter( array_map( 'absint', explode( ',', (string) $atts['ids'] ) ) );
+
+		$query = array(
+			'post_status'         => 'publish',
+			'posts_per_page'      => $limit,
+			'ignore_sticky_posts' => true,
+			'no_found_rows'       => true,
+		);
+		if ( $ids ) {
+			$query['post__in']  = $ids;
+			$query['post_type'] = 'any';
+			$query['orderby']   = 'post__in';
+		} else {
+			$query['post_type'] = 'post';
+			if ( '' !== $atts['category'] ) {
+				$query['category_name'] = sanitize_title( $atts['category'] );
+			}
+		}
+		$posts = get_posts( $query );
+		if ( ! $posts ) {
+			return '';
+		}
+
+		$cards = array();
+		foreach ( $posts as $post ) {
+			$cards[] = array(
+				'url'   => get_permalink( $post ),
+				'title' => get_the_title( $post ),
+				'image' => get_the_post_thumbnail(
+					$post,
+					'medium_large',
+					array(
+						'class'   => 'gco-pd-guide__img',
+						'loading' => 'lazy',
+						'alt'     => '',
+					)
+				),
+			);
+		}
+		$body = self::template(
+			'portal-guides',
+			array(
+				'cards'     => $cards,
+				'read_text' => $atts['read_text'],
+			)
+		);
+		return self::card( $body, $atts, 'book', 'guides' );
 	}
 
 	/**
@@ -626,14 +915,24 @@ final class GCO_PD_Shortcodes {
 	 * @return string
 	 */
 	public static function sc_az( array $atts ) {
-		unset( $atts );
+		$atts     = shortcode_atts(
+			self::with_card(
+				array(
+					'all_text' => 'View all 43 police forces',
+					'title'    => 'Browse All Police Forces (England & Wales)',
+					'subtitle' => 'Find your local force for detailed licensing information, waiting times and application guidance.',
+				)
+			),
+			$atts,
+			'gco_police_az'
+		);
 		$snapshot = self::snapshot();
 		if ( ! $snapshot['forces'] ) {
-			return self::empty_state();
+			return self::card( self::empty_state(), $atts, 'shield', 'az' );
 		}
 		$groups = array();
 		foreach ( self::forces_by_name( $snapshot ) as $force ) {
-			$letter = strtoupper( substr( $force['name'], 0, 1 ) );
+			$letter              = strtoupper( substr( $force['name'], 0, 1 ) );
 			$groups[ $letter ][] = array(
 				'name' => $force['name'],
 				'url'  => self::force_url( $force ),
@@ -643,11 +942,57 @@ final class GCO_PD_Shortcodes {
 
 		static $instance = 0;
 		++$instance;
-		return self::template(
+		$id       = 'gco-pd-az-' . $instance;
+		$all_text = str_replace( '43', (string) count( $snapshot['forces'] ), $atts['all_text'] );
+		$link     = '<a class="gco-pd-card__link" href="#' . esc_attr( $id ) . '" data-gco-az-all="' . esc_attr( $id ) . '">' . esc_html( $all_text ) . GCO_PD_Icons::get( 'arrow-right' ) . '</a>';
+
+		$body = self::template(
 			'portal-az',
 			array(
-				'id'     => 'gco-pd-az-' . $instance,
+				'id'     => $id,
 				'groups' => $groups,
+			)
+		);
+		return self::card( $body, $atts, 'shield', 'az', $link );
+	}
+
+	/**
+	 * [gco_police_research title="" next_review="April 2027"]How we research text[/gco_police_research]
+	 *
+	 * "Last updated" is the publish date of the latest FOI round or NPCC quarter.
+	 *
+	 * @param array  $atts    Attributes.
+	 * @param string $content Body text.
+	 * @return string
+	 */
+	public static function sc_research( array $atts, $content = '' ) {
+		$atts     = shortcode_atts(
+			array(
+				'title'       => 'How We Research UK Firearms Licensing',
+				'next_review' => '',
+			),
+			$atts,
+			'gco_police_research'
+		);
+		$snapshot = self::snapshot();
+		$dates    = array_filter(
+			array(
+				$snapshot['latest_round']['published_at'] ?? null,
+				$snapshot['latest_quarter']['published_at'] ?? null,
+			)
+		);
+		$text     = trim( (string) $content );
+		if ( '' === $text ) {
+			$text = 'Our data is based on Freedom of Information (FOI) requests to all 43 police forces, combined with official NPCC and Home Office statistics. We analyse the responses, standardise the figures and update our information regularly.';
+		}
+
+		return self::template(
+			'portal-research',
+			array(
+				'title'       => $atts['title'],
+				'text'        => wp_kses_post( wpautop( str_replace( array( '<p>', '</p>' ), '', $text ) ) ),
+				'updated'     => $dates ? GCO_PD_Format::date( max( $dates ) ) : '',
+				'next_review' => $atts['next_review'],
 			)
 		);
 	}
@@ -913,44 +1258,66 @@ final class GCO_PD_Shortcodes {
 	/* ------------------------------------------------------------------------- FAQs */
 
 	/**
-	 * [gco_police_faq_schema]...one or more [vc_toggle title="Question"]Answer[/vc_toggle]...[/gco_police_faq_schema]
+	 * [gco_police_faq_schema title="Frequently Asked Questions" columns="2"]
+	 *   [vc_toggle title="Question"]Answer[/vc_toggle] ...
+	 * [/gco_police_faq_schema]
 	 *
-	 * Renders the enclosed toggles as usual and adds a FAQPage JSON-LD block built from their
-	 * question/answer pairs. Scoped to this one wrapper (not every `vc_toggle` on the site) so it never
-	 * duplicates schema the SEO plugin already emits for its own FAQ block elsewhere.
+	 * Editors keep adding WPBakery Toggle elements; this renders them as the portal's accordion (native
+	 * <details>, no JavaScript) and adds one FAQPage JSON-LD block built from the same questions. Scoped
+	 * to this wrapper, not every vc_toggle on the site, so it never duplicates the SEO plugin's schema.
 	 *
-	 * @param array  $atts    Attributes (unused).
+	 * @param array  $atts    Attributes.
 	 * @param string $content Enclosed WPBakery markup.
 	 * @return string
 	 */
-	public static function sc_faq_schema( array $atts, $content ) {
-		unset( $atts );
-		$rendered = do_shortcode( $content );
-		$pairs    = self::extract_faq_pairs( $content );
+	public static function sc_faq_schema( array $atts, $content = '' ) {
+		$atts  = shortcode_atts(
+			array(
+				'title'   => 'Frequently Asked Questions',
+				'columns' => '2',
+				'schema'  => 'yes',
+			),
+			$atts,
+			'gco_police_faq_schema'
+		);
+		$pairs = self::extract_faq_pairs( (string) $content );
 		if ( ! $pairs ) {
-			return $rendered;
+			return do_shortcode( (string) $content );
 		}
-		return $rendered . self::template( 'portal-faq-schema', array( 'pairs' => $pairs ) );
+		return self::template(
+			'portal-faqs',
+			array(
+				'title'   => $atts['title'],
+				'columns' => max( 1, min( 2, (int) $atts['columns'] ) ),
+				'pairs'   => $pairs,
+				'schema'  => 'no' !== strtolower( (string) $atts['schema'] ),
+			)
+		);
 	}
 
 	/**
-	 * Pulls {question, answer} pairs out of nested `vc_toggle` shortcodes.
+	 * Pulls question/answer pairs out of nested `vc_toggle` shortcodes.
 	 *
 	 * @param string $content Raw enclosed shortcode markup.
-	 * @return array{question:string,answer:string}[]
+	 * @return array{question:string,answer:string,html:string}[] answer is plain text (schema), html is the display markup.
 	 */
 	private static function extract_faq_pairs( $content ) {
 		$pairs = array();
 		if ( ! preg_match_all( '/' . get_shortcode_regex( array( 'vc_toggle' ) ) . '/s', $content, $matches ) ) {
 			return $pairs;
 		}
-		foreach ( $matches[0] as $i => $full ) {
+		foreach ( array_keys( $matches[0] ) as $i ) {
 			$shortcode_atts = shortcode_parse_atts( $matches[3][ $i ] );
-			$question       = is_array( $shortcode_atts ) && ! empty( $shortcode_atts['title'] ) ? trim( (string) $shortcode_atts['title'] ) : '';
-			$answer         = trim( wp_strip_all_tags( (string) $matches[5][ $i ] ) );
-			$answer         = trim( preg_replace( '/\s+/', ' ', $answer ) );
+			$question       = is_array( $shortcode_atts ) && ! empty( $shortcode_atts['title'] ) ? trim( html_entity_decode( (string) $shortcode_atts['title'], ENT_QUOTES, 'UTF-8' ) ) : '';
+			// wpautop leaves stray <p>/</p> around toggle content; strip them and re-paragraph.
+			$raw    = trim( str_replace( array( '<p>', '</p>' ), '', preg_replace( '#<p[^>]*>#', '', (string) $matches[5][ $i ] ) ) );
+			$answer = trim( preg_replace( '/\s+/', ' ', html_entity_decode( wp_strip_all_tags( $raw ), ENT_QUOTES, 'UTF-8' ) ) );
 			if ( '' !== $question && '' !== $answer ) {
-				$pairs[] = array( 'question' => $question, 'answer' => $answer );
+				$pairs[] = array(
+					'question' => $question,
+					'answer'   => $answer,
+					'html'     => wp_kses_post( wpautop( do_shortcode( $raw ) ) ),
+				);
 			}
 		}
 		return $pairs;

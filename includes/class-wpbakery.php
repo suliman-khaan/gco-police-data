@@ -86,7 +86,30 @@ final class GCO_PD_WPBakery {
 			'Variation'               => 'variation',
 		);
 
+		$card = array(
+			self::text( 'title', 'Title', 'Leave empty for the default title.' ),
+			self::text( 'subtitle', 'Subtitle' ),
+		);
+
 		return array(
+			'gco_police_hero'          => array(
+				'name'        => 'Police portal hero',
+				'description' => 'Title, intro and force search over a photo',
+				'params'      => array(
+					self::text( 'title', 'Title', '', 'Police Firearms Licensing – England & Wales' ),
+					array(
+						'type'       => 'attach_image',
+						'param_name' => 'image',
+						'heading'    => 'Background photo',
+					),
+					array(
+						'type'       => 'textarea_html',
+						'param_name' => 'content',
+						'heading'    => 'Intro',
+					),
+					self::text( 'browse_url', 'Browse-all link', '', '#browse' ),
+				),
+			),
 			'gco_police_search'        => array(
 				'name'        => 'Police force search',
 				'description' => 'Live search box for the 43 forces',
@@ -114,7 +137,9 @@ final class GCO_PD_WPBakery {
 				'params'      => array(
 					self::text( 'limit', 'Rows', 'A number, or "all" for the full table.', '5' ),
 					self::text( 'more_url', 'Full leaderboard link' ),
-					self::text( 'more_text', 'Link text', '', 'See the full leaderboard' ),
+					self::text( 'more_text', 'Link text', '', 'View full leaderboard' ),
+					$card[0],
+					$card[1],
 				),
 			),
 			'gco_police_glance'        => array(
@@ -127,17 +152,44 @@ final class GCO_PD_WPBakery {
 						'heading'    => 'Waiting time',
 						'value'      => $metrics,
 					),
+					$card[0],
+					$card[1],
 				),
 			),
 			'gco_police_waiting_table' => array(
 				'name'        => 'Police waiting times table',
 				'description' => 'Tabbed table: Shotgun, Firearm, Renewals, Variations',
-				'params'      => array(),
+				'params'      => array_merge( array( self::text( 'limit', 'Rows before "show all"', 'A number, or "all".', '5' ) ), $card ),
 			),
 			'gco_police_az'            => array(
 				'name'        => 'Police A-Z',
 				'description' => 'Browse all forces alphabetically',
-				'params'      => array(),
+				'params'      => $card,
+			),
+			'gco_police_guides'        => array(
+				'name'        => 'Police guide cards',
+				'description' => 'Cards linking to guide pages or posts',
+				'params'      => array_merge(
+					array(
+						self::text( 'ids', 'Page or post IDs', 'Comma separated, in display order. Leave empty to use the latest posts.' ),
+						self::text( 'category', 'Category slug', 'Used when no IDs are given.' ),
+						self::text( 'limit', 'Number of cards', '', '4' ),
+					),
+					$card
+				),
+			),
+			'gco_police_research'      => array(
+				'name'        => 'Police how we research',
+				'description' => 'Method note with last updated / next review dates',
+				'params'      => array(
+					self::text( 'title', 'Title', '', 'How We Research UK Firearms Licensing' ),
+					self::text( 'next_review', 'Next review', 'e.g. April 2027' ),
+					array(
+						'type'       => 'textarea_html',
+						'param_name' => 'content',
+						'heading'    => 'Text',
+					),
+				),
 			),
 			'gco_force_waiting_times'  => array(
 				'name'        => 'Force waiting times',
@@ -183,7 +235,10 @@ final class GCO_PD_WPBakery {
 				'base'           => 'gco_police_faq_schema',
 				'description'    => 'Wrap Toggle elements with FAQ questions/answers to add FAQPage structured data',
 				'category'       => self::CATEGORY,
-				'params'         => array(),
+				'params'         => array(
+					self::text( 'title', 'Title', '', 'Frequently Asked Questions' ),
+					self::text( 'columns', 'Columns', '1 or 2', '2' ),
+				),
 				'as_parent'      => array( 'only' => 'vc_toggle' ),
 				'content_element' => true,
 				'is_container'   => true,

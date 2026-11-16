@@ -104,6 +104,20 @@
 			active = -1;
 		}
 
+		var form = root.querySelector( '.gco-pd-search__form' );
+		if ( form ) {
+			form.addEventListener( 'submit', function ( event ) {
+				event.preventDefault();
+				render();
+				var target = shown[ active >= 0 ? active : 0 ];
+				if ( target && target.u ) {
+					window.location.href = target.u;
+				} else {
+					input.focus();
+				}
+			} );
+		}
+
 		input.addEventListener( 'input', render );
 		input.addEventListener( 'focus', render );
 		input.addEventListener( 'keydown', function ( event ) {
@@ -183,45 +197,72 @@
 
 	/* ------------------------------------------------------------------- A-Z */
 	function initAz( root ) {
-		var letters = Array.prototype.slice.call( root.querySelectorAll( '.gco-pd-az__letter' ) );
+		var controls = Array.prototype.slice.call( root.querySelectorAll( '.gco-pd-az__letter' ) );
 		var groups = Array.prototype.slice.call( root.querySelectorAll( '.gco-pd-az__group' ) );
-		var nav = root.querySelector( '.gco-pd-az__nav' );
-		if ( ! letters.length ) {
+		if ( ! controls.length ) {
 			return;
 		}
 		root.classList.add( 'is-js' );
 
-		var all = document.createElement( 'button' );
-		all.type = 'button';
-		all.className = 'gco-pd-az__letter gco-pd-az__all';
-		all.textContent = 'All';
-		nav.insertBefore( all, nav.firstChild );
-		var controls = [ all ].concat( letters );
-
 		function show( letter ) {
 			groups.forEach( function ( group ) {
-				group.hidden = letter !== null && group.getAttribute( 'data-letter' ) !== letter;
+				group.hidden = letter !== '' && group.getAttribute( 'data-letter' ) !== letter;
 			} );
 			controls.forEach( function ( control ) {
-				var mine = control === all ? letter === null : control.getAttribute( 'data-letter' ) === letter;
-				control.setAttribute( 'aria-pressed', mine ? 'true' : 'false' );
+				control.setAttribute( 'aria-pressed', control.getAttribute( 'data-letter' ) === letter ? 'true' : 'false' );
+				control.setAttribute( 'role', 'button' );
 			} );
 		}
 
-		all.addEventListener( 'click', function () { show( null ); } );
-		letters.forEach( function ( link ) {
+		controls.forEach( function ( link ) {
 			link.addEventListener( 'click', function ( event ) {
 				event.preventDefault();
 				show( link.getAttribute( 'data-letter' ) );
 			} );
 		} );
-		show( null );
+		document.querySelectorAll( '[data-gco-az-all="' + root.id + '"]' ).forEach( function ( link ) {
+			link.addEventListener( 'click', function ( event ) {
+				event.preventDefault();
+				show( '' );
+				root.scrollIntoView( { block: 'start' } );
+			} );
+		} );
+		show( '' );
+	}
+
+	/* ---------------------------------------------------------------- Expand */
+	function initExpand( root ) {
+		var toggles = Array.prototype.slice.call( document.querySelectorAll( '[data-gco-expand-toggle="' + root.id + '"]' ) );
+		if ( ! toggles.length ) {
+			return;
+		}
+		root.classList.add( 'is-collapsed' );
+		toggles.forEach( function ( toggle ) {
+			var text = toggle.firstChild;
+			if ( text && text.nodeType === 3 ) {
+				toggle.setAttribute( 'data-label-closed', text.nodeValue );
+			}
+			toggle.addEventListener( 'click', function () {
+				var open = root.classList.toggle( 'is-collapsed' ) === false;
+				toggles.forEach( function ( other ) {
+					other.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+					var label = other.getAttribute( open ? 'data-label-open' : 'data-label-closed' );
+					if ( label && other.firstChild && other.firstChild.nodeType === 3 ) {
+						other.firstChild.nodeValue = label;
+					}
+				} );
+				if ( ! open ) {
+					root.scrollIntoView( { block: 'nearest' } );
+				}
+			} );
+		} );
 	}
 
 	function ready() {
 		document.querySelectorAll( '[data-gco-search]' ).forEach( initSearch );
 		document.querySelectorAll( '[data-gco-tabs]' ).forEach( initTabs );
 		document.querySelectorAll( '[data-gco-az]' ).forEach( initAz );
+		document.querySelectorAll( '[data-gco-expand]' ).forEach( initExpand );
 	}
 
 	if ( document.readyState === 'loading' ) {
