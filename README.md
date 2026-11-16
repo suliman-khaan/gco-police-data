@@ -35,7 +35,8 @@ Everyday use is explained on **Police Data → Help** inside WordPress.
   never summed into counts. "Met standard (%)" is a percentage by nature; a bare value of 1 or less is read as a fraction.
 - **Shared departments**: a force can belong to a shared group (Police Data → Forces). Forces in a group that carry the
   same figure are counted once in national totals and averages (NPCC and FOI, per figure); different figures all count.
-  The import preview warns when a group disagrees with itself.
+  The import preview warns when a group disagrees with itself, and when forces carry identical large figures but are
+  not marked as sharing (a forgotten tick). Groups are data, so changing them never needs a plugin update.
 
 Older spreadsheets without the new columns still import (the headers are optional).
 

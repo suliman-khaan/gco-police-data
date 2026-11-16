@@ -91,6 +91,8 @@ $gco_url = static function ( $page, array $args = array() ) {
 			<li>Enter the <strong>same combined figures against each force</strong>, as normal: one row per force in the spreadsheet or the round editor.</li>
 			<li>The national totals and averages then count the shared figure <strong>once</strong>, so nothing is double counted. Each force still has its own page, its own row in the leaderboards, and a note saying it shares a department.</li>
 		</ol>
+		<p>Which forces share a department is just a setting here, not part of the plugin: when an arrangement starts, changes or ends, tick or clear it on the Forces screen. No plugin update is ever needed.</p>
+		<p>If you forget, the import preview helps: when forces carry <strong>identical large figures</strong> (applications, outstanding, holders) but are not marked as sharing, each row gets a warning naming them, so a department is not counted twice by accident.</p>
 		<p class="description">If the forces in a group give <em>different</em> figures, they are treated as separate figures and all of them count. The import preview warns when forces in a shared department disagree, in case it is a typing slip.</p>
 	</section>
 
