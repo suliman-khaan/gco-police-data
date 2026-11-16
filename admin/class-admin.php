@@ -24,6 +24,7 @@ final class GCO_PD_Admin {
 	const SLUG_SETTINGS = 'gco-pd-settings';
 	const SLUG_PAGES    = 'gco-pd-force-pages';
 	const SLUG_PROFILE  = 'gco-pd-force-profile';
+	const SLUG_HELP     = 'gco-pd-help';
 
 	/**
 	 * Handlers: action name => method.
@@ -76,6 +77,7 @@ final class GCO_PD_Admin {
 		add_submenu_page( self::SLUG_ROUNDS, 'Force Pages', 'Force Pages', $cap, self::SLUG_PAGES, array( __CLASS__, 'page_force_pages' ) );
 		add_submenu_page( self::SLUG_ROUNDS, 'Edit force page', 'Edit force page', $cap, self::SLUG_PROFILE, array( __CLASS__, 'page_profile' ) );
 		add_submenu_page( self::SLUG_ROUNDS, 'Settings', 'Settings', $cap, self::SLUG_SETTINGS, array( __CLASS__, 'page_settings' ) );
+		add_submenu_page( self::SLUG_ROUNDS, 'Help', 'Help', $cap, self::SLUG_HELP, array( __CLASS__, 'page_help' ) );
 		// The round editor is reachable by link only; it stays out of the menu.
 		add_submenu_page( self::SLUG_ROUNDS, 'Edit round', 'Edit round', $cap, self::SLUG_ROUND, array( __CLASS__, 'page_round' ) );
 	}
@@ -322,6 +324,13 @@ final class GCO_PD_Admin {
 				'pages'  => $pages,
 			)
 		);
+	}
+
+	/**
+	 * Help screen.
+	 */
+	public static function page_help() {
+		self::render( 'help' );
 	}
 
 	/**
