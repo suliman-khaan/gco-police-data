@@ -1,3 +1,0 @@
-#!/bin/sh
-# A plain `git merge development` on main would auto-commit dev files; run the same guard.
-exec "$(git rev-parse --git-path hooks)/pre-commit"
