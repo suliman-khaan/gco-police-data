@@ -23,6 +23,11 @@ final class GCO_PD_Settings {
 		return array(
 			'show_pdf_public' => false, // Link the FOI PDF publicly on force pages.
 			'delete_data'     => false, // Remove tables and options when the plugin is deleted.
+			// Extra FOI figures: collected always, public only when switched on.
+			'show_volumes'    => false, // Applications received / completed on force pages.
+			'show_outstanding' => false, // Outstanding applications and the oldest outstanding.
+			'show_backlog'    => false, // Backlog age bands.
+			'show_standards'  => false, // Service standards and how often they were met.
 			'portal_page_id'  => 0,     // The police licensing portal page (its page cache is cleared on publish).
 		);
 	}

@@ -92,7 +92,9 @@ final class GCO_PD_Force_Page {
 			'gp'       => self::gp( $profile, $shared, $name ),
 			'area'     => self::area( $force, $profile, $area ),
 			'reports'  => self::reports( $profile, $name ),
+			'shared'   => self::shared( $force ),
 			'waits'    => self::waits( $force, $snapshot ),
+			'apps'     => self::applications( $force ),
 			'overview' => self::overview( $force, $name ),
 			'inspect'  => self::inspection( $shared, $name ),
 			'faqs'     => self::faqs( $profile, $name ),
@@ -375,6 +377,137 @@ final class GCO_PD_Force_Page {
 	}
 
 	/**
+	 * "Warwickshire shares a firearms licensing department with West Mercia": the figures are the department's
+	 * combined figures, shown for each force and counted once in national totals.
+	 *
+	 * @param array $force Snapshot force.
+	 * @return array|null
+	 */
+	private static function shared( array $force ) {
+		if ( empty( $force['shared']['with'] ) ) {
+			return null;
+		}
+		$names = array_column( $force['shared']['with'], 'name' );
+		$last  = array_pop( $names );
+		$list  = $names ? implode( ', ', $names ) . ' and ' . $last : $last;
+		return array(
+			'text' => sprintf(
+				'%1$s runs a shared firearms licensing department with %2$s. The figures below are for the shared department and appear on each force\'s page; they are counted once in the national totals.',
+				$force['name'],
+				$list
+			),
+		);
+	}
+
+	/**
+	 * Applications, backlog and service standards from the latest FOI response. Only the parts switched on in
+	 * Settings are included; the section is hidden when nothing is left to show.
+	 *
+	 * @param array $force Snapshot force.
+	 * @return array|null
+	 */
+	private static function applications( array $force ) {
+		$extra = $force['foi']['extra'] ?? null;
+		if ( ! $extra ) {
+			return null;
+		}
+		$metrics = $extra['metrics'];
+		$round   = GCO_PD_Format::round_label( $force['foi']['round'] );
+
+		$figure_row = static function ( $label, $key, $bad = null, $noun = '' ) use ( $metrics ) {
+			$metric = $metrics[ $key ] ?? null;
+			if ( ! $metric || null === $metric['value'] ) {
+				return null;
+			}
+			return array(
+				'label'  => $label,
+				'figure' => array(
+					'text'   => 'percent' === GCO_PD_Validator::FOI_EXTRA_METRICS[ $key ]['type'] ? rtrim( rtrim( number_format( $metric['value'], 2 ), '0' ), '.' ) . '%' : ( 'days' === GCO_PD_Validator::FOI_EXTRA_METRICS[ $key ]['type'] ? GCO_PD_Format::days( $metric['value'] ) : GCO_PD_Format::number( $metric['value'] ) ),
+					'basis'  => 'estimate' === $metric['status'] ? 'Estimate' : '',
+					'status' => $metric['status'],
+				),
+				'change' => GCO_PD_Format::count_change( $metric['change'], $metric['direction'], $bad, $noun ),
+			);
+		};
+
+		$sections = array();
+
+		if ( GCO_PD_Settings::get( 'show_volumes' ) ) {
+			$rows = array_values( array_filter( array( $figure_row( 'Applications received', 'apps_received' ), $figure_row( 'Applications completed', 'apps_completed' ) ) ) );
+			if ( $rows ) {
+				$sections['volumes'] = array(
+					'title'  => 'Application volumes',
+					'period' => $extra['period'],
+					'rows'   => $rows,
+				);
+			}
+		}
+
+		if ( GCO_PD_Settings::get( 'show_outstanding' ) ) {
+			$rows = array_values( array_filter( array( $figure_row( 'Outstanding applications', 'outstanding', 'up', 'applications' ), $figure_row( 'Oldest outstanding application', 'oldest', 'up' ) ) ) );
+			if ( $rows ) {
+				$sections['outstanding'] = array(
+					'title' => 'Outstanding applications',
+					'rows'  => $rows,
+				);
+			}
+		}
+
+		if ( GCO_PD_Settings::get( 'show_backlog' ) && ! empty( $extra['backlog'] ) ) {
+			$backlog = $extra['backlog'];
+			$items   = array();
+			foreach ( $backlog['bands'] as $band ) {
+				$items[ $band['label'] ] = $band['value'];
+			}
+			$percent = GCO_PD_Validator::UNIT_PERCENT === $backlog['unit'];
+			$rows    = array();
+			foreach ( $backlog['bands'] as $band ) {
+				$rows[] = array(
+					'label' => $band['label'],
+					'text'  => null === $band['value'] ? null : ( $percent ? rtrim( rtrim( number_format( $band['value'], 2 ), '0' ), '.' ) . '%' : GCO_PD_Format::number( $band['value'] ) ),
+				);
+			}
+			$sections['backlog'] = array(
+				'title'    => 'How long outstanding applications have waited',
+				'percent'  => $percent,
+				'estimate' => 'estimate' === $backlog['status'],
+				'rows'     => $rows,
+				'chart'    => GCO_PD_SVG_Chart::bars(
+					$items,
+					array(
+						'title'       => $force['name'] . ': age of outstanding applications',
+						'description' => $percent ? 'Share of outstanding applications in each age band, as a percentage.' : 'Number of outstanding applications in each age band.',
+						'unit'        => $percent ? '%' : '',
+						'axis_label'  => $percent ? 'Percentage of outstanding applications' : 'Outstanding applications',
+						'highlight_last' => false,
+					)
+				),
+				'note'     => $percent ? 'This force gave percentages rather than numbers, so they are shown as given.' : '',
+			);
+		}
+
+		if ( GCO_PD_Settings::get( 'show_standards' ) ) {
+			$rows = array_values( array_filter( array( $figure_row( 'Service standard', 'standard_days' ), $figure_row( 'Applications that met the standard', 'standard_met', 'down' ) ) ) );
+			if ( $rows || $extra['standard'] ) {
+				$sections['standards'] = array(
+					'title' => 'Service standard',
+					'text'  => $extra['standard'],
+					'rows'  => $rows,
+				);
+			}
+		}
+
+		if ( ! $sections ) {
+			return null;
+		}
+		return array(
+			'sections' => $sections,
+			'round'    => $round,
+			'stale'    => ! empty( $force['foi']['stale'] ),
+		);
+	}
+
+	/**
 	 * National overview stat cards from the latest NPCC quarter.
 	 *
 	 * @param array  $force Snapshot force.
@@ -532,6 +665,9 @@ final class GCO_PD_Force_Page {
 			$nav[] = array( 'gco-reports', array( 'Recent Comments', '& Feedback' ), 'comment' );
 		}
 		$nav[] = array( 'gco-waits', array( 'Current', 'Waiting Times' ), 'clock' );
+		if ( $data['apps'] ) {
+			$nav[] = array( 'gco-applications', array( 'Applications', '& Backlog' ), 'document' );
+		}
 		if ( $data['faqs'] ) {
 			$nav[] = array( 'gco-faqs', array( 'FAQs', '' ), 'help' );
 		}

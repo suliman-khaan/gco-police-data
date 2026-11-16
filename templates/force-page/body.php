@@ -48,7 +48,8 @@ $gco_pd_part = static function ( $name, $vars ) {
 		<div class="gco-pd-fmain">
 			<?php echo $gco_pd_part( 'area', $area ); ?>
 			<?php echo $gco_pd_part( 'reports', $reports ); ?>
-			<?php echo $gco_pd_part( 'waits', array_merge( $waits, array( 'name' => $name ) ) ); ?>
+			<?php echo $gco_pd_part( 'waits', array_merge( $waits, array( 'name' => $name, 'shared' => $shared ) ) ); ?>
+			<?php echo $gco_pd_part( 'applications', $apps ? array_merge( $apps, array( 'name' => $name, 'shared' => $shared ) ) : null ); ?>
 		</div>
 	</div>
 

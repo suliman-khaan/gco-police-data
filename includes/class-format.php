@@ -95,6 +95,54 @@ final class GCO_PD_Format {
 	}
 
 	/**
+	 * Change in a count since the previous round: "▲ 120 more". Arrow and wording only; the class says whether
+	 * the direction is good ('better'), bad ('worse') or neither ('same').
+	 *
+	 * @param int|float|null $change    Signed change.
+	 * @param string|null    $direction up | down | same.
+	 * @param string|null    $bad       Which direction is bad: 'up', 'down', or null when neither is better.
+	 * @param string         $noun      "applications" ...; used for the wording.
+	 * @return array{arrow:string,text:string,class:string}|null
+	 */
+	public static function count_change( $change, $direction, $bad = null, $noun = '' ) {
+		if ( null === $change || null === $direction ) {
+			return null;
+		}
+		$size = number_format( abs( (float) $change ), floor( abs( (float) $change ) ) === abs( (float) $change ) ? 0 : 1 );
+		$tail = '' !== $noun ? ' ' . $noun : '';
+		if ( 'same' === $direction ) {
+			return array(
+				'arrow' => "\u{2013}",
+				'text'  => 'No change',
+				'class' => 'same',
+			);
+		}
+		return array(
+			'arrow' => 'up' === $direction ? "\u{25B2}" : "\u{25BC}",
+			'text'  => $size . $tail . ( 'up' === $direction ? ' more' : ' fewer' ),
+			'class' => null === $bad ? 'same' : ( $direction === $bad ? 'worse' : 'better' ),
+		);
+	}
+
+	/**
+	 * "38 forces" or, when forces share a licensing department and are counted once,
+	 * "41 forces (39 licensing departments)".
+	 *
+	 * @param int      $forces Forces that gave a figure.
+	 * @param int|null $unique Independent departments after shared ones are merged (null = same as forces).
+	 * @return string
+	 */
+	public static function forces_phrase( $forces, $unique = null ) {
+		$forces = (int) $forces;
+		$text   = $forces . ( 1 === $forces ? ' force' : ' forces' );
+		if ( null !== $unique && (int) $unique !== $forces ) {
+			$unique = (int) $unique;
+			$text  .= sprintf( ' (%d licensing %s)', $unique, 1 === $unique ? 'department' : 'departments' );
+		}
+		return $text;
+	}
+
+	/**
 	 * Force name without its service suffix, for tight lists: "Dorset Police" => "Dorset",
 	 * "Metropolitan Police Service" => "Metropolitan", "Cumbria Constabulary" => "Cumbria".
 	 *

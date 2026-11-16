@@ -25,6 +25,20 @@ Everyday use is explained on **Police Data → Help** inside WordPress.
 | Written content of each force page, shared defaults | Police Data → Force Pages |
 | CSV backups | Download buttons on the rounds and quarters screens |
 
+## Extra FOI figures, percentages and shared departments
+
+- **Extra figures** (from round 2026-11): applications received and completed with the period they cover, outstanding
+  applications and the oldest one, backlog age bands, and service standards (wording, days, % met). All optional and
+  stored with the same Actual / Estimate / Not provided status as the other figures. Nothing is public until switched on
+  under Settings (`show_volumes`, `show_outstanding`, `show_backlog`, `show_standards`).
+- **Percentages**: backlog bands carry a Count or Percentage unit per row. Percentages are stored and shown as given and
+  never summed into counts. "Met standard (%)" is a percentage by nature; a bare value of 1 or less is read as a fraction.
+- **Shared departments**: a force can belong to a shared group (Police Data → Forces). Forces in a group that carry the
+  same figure are counted once in national totals and averages (NPCC and FOI, per figure); different figures all count.
+  The import preview warns when a group disagrees with itself.
+
+Older spreadsheets without the new columns still import (the headers are optional).
+
 Publishing rebuilds one cached snapshot, so every front-end block reads a single option and the plugin adds
 one query to a force page and none to the portal. Page caches (WP Rocket) are cleared for the portal and the
 force pages; other cache layers can hook `gco_pd_purge_pages`.

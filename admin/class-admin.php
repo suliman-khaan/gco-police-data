@@ -518,6 +518,17 @@ final class GCO_PD_Admin {
 			$clean[ $meta['column'] ] = isset( $row[ $meta['column'] ] ) ? sanitize_text_field( (string) $row[ $meta['column'] ] ) : '';
 			$clean[ $meta['status'] ] = isset( $row[ $meta['status'] ] ) ? sanitize_text_field( (string) $row[ $meta['status'] ] ) : '';
 		}
+		// Applications, backlog and service standards (second tab of the round editor).
+		foreach ( GCO_PD_Validator::FOI_EXTRA_METRICS as $meta ) {
+			$clean[ $meta['column'] ] = isset( $row[ $meta['column'] ] ) ? sanitize_text_field( (string) $row[ $meta['column'] ] ) : '';
+			$clean[ $meta['status'] ] = isset( $row[ $meta['status'] ] ) ? sanitize_text_field( (string) $row[ $meta['status'] ] ) : '';
+		}
+		foreach ( array_keys( GCO_PD_Validator::BACKLOG_BANDS ) as $column ) {
+			$clean[ $column ] = isset( $row[ $column ] ) ? sanitize_text_field( (string) $row[ $column ] ) : '';
+		}
+		foreach ( array( 'backlog_unit', 'backlog_status', 'volumes_period', 'standard_text' ) as $column ) {
+			$clean[ $column ] = isset( $row[ $column ] ) ? sanitize_text_field( (string) $row[ $column ] ) : '';
+		}
 		$clean['foi_ref']       = isset( $row['foi_ref'] ) ? sanitize_text_field( (string) $row['foi_ref'] ) : '';
 		$clean['response_date'] = isset( $row['response_date'] ) ? sanitize_text_field( (string) $row['response_date'] ) : '';
 		$clean['notes']         = isset( $row['notes'] ) ? wp_kses_post( (string) $row['notes'] ) : '';
@@ -539,6 +550,22 @@ final class GCO_PD_Admin {
 			if ( ! in_array( GCO_PD_Validator::normalize_status( $row[ $meta['status'] ] ), array( null, GCO_PD_Validator::STATUS_NOT_PROVIDED ), true ) ) {
 				return false;
 			}
+		}
+		foreach ( GCO_PD_Validator::FOI_EXTRA_METRICS as $meta ) {
+			if ( '' !== $row[ $meta['column'] ] ) {
+				return false;
+			}
+			if ( ! in_array( GCO_PD_Validator::normalize_status( $row[ $meta['status'] ] ), array( null, GCO_PD_Validator::STATUS_NOT_PROVIDED ), true ) ) {
+				return false;
+			}
+		}
+		foreach ( array_keys( GCO_PD_Validator::BACKLOG_BANDS ) as $column ) {
+			if ( '' !== $row[ $column ] ) {
+				return false;
+			}
+		}
+		if ( ! in_array( GCO_PD_Validator::normalize_status( $row['backlog_status'] ), array( null, GCO_PD_Validator::STATUS_NOT_PROVIDED ), true ) || '' !== $row['volumes_period'] || '' !== $row['standard_text'] ) {
+			return false;
 		}
 		return '' === $row['foi_ref'] && '' === $row['response_date'] && '' === trim( $row['notes'] ) && ! $row['pdf_id'];
 	}
@@ -617,6 +644,7 @@ final class GCO_PD_Admin {
 				array(
 					'name'      => sanitize_text_field( $fields['name'] ?? '' ),
 					'aliases'   => sanitize_text_field( $fields['aliases'] ?? '' ),
+					'shared_group' => sanitize_text_field( $fields['shared_group'] ?? '' ),
 					'page_id'   => absint( $fields['page_id'] ?? 0 ),
 					'is_active' => ! empty( $fields['is_active'] ),
 				)

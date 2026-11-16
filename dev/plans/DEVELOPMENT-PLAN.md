@@ -157,6 +157,21 @@ Each milestone = one or more feature branches → merged to `development` → ta
 
 Found and fixed during QA: invalid `font-family` declaration (browsers dropped it), editor screens denied by WordPress (menu hiding), `page_id = 0` forces never auto-linked.
 
+### M8 — Extra FOI figures, percentages and shared departments · `feature/m8-extra-figures` (from client feedback, 16 Nov 2026)
+
+Emma (client) raised three points; all three are built, optional and off by default for visitors.
+
+| Feedback | What was built |
+|---|---|
+| "We asked for application volumes, outstanding applications, backlog ages and service standards. Publish them? The spreadsheet must account for them." | 20 new optional FOI columns (blue headers) in the template and importer: applications received/completed + period, outstanding + oldest outstanding (days), backlog age bands (up to 3 / 3-6 / 6-12 / over 12 months) with one unit and one status, service standard (wording, days, % met). Same Actual / Estimate / Not provided rule per figure. Stored from the first round that has them. **Public only when switched on** (4 tick-boxes in Settings: volumes, outstanding, backlog, standards), so the client can decide later. Force pages get an "Applications, Backlog & Service Standards" section; portal stat cards `outstanding` and `standard`. Round editor gets a second tab. |
+| "Some forces give percentages rather than numbers." | Backlog bands have a Count or Percentage unit per row. Percentages are validated (0-100, should add to about 100), shown as given with a note, and **never summed into counts**. "Met standard %" is a percentage by nature; a bare value of 1 or less is read as a fraction (Excel stores 82% as 0.82) with a notice in the preview. Percentages for other figures: not built (ask the client which, if any). |
+| "Shared departments: same data against both forces, but no double counting in national statistics." | `shared_group` on each force (Police Data > Forces). Per figure, forces in a group that carry the **same** value are counted once in national totals and averages (NPCC holders/applications/% within SLA, FOI waiting-time averages, new extras); **different** values all count. Each force keeps its own page and rank, and shows a "shares a department with ..." note. Snapshot reports forces vs licensing departments ("Across 41 forces (39 licensing departments)"). The import preview warns when a group disagrees with itself. |
+
+- [x] DB version 4 (new response columns, `forces.shared_group`); old rows and old spreadsheets keep working (new headers optional)
+- [x] Spreadsheet: new template with the blue column group, dropdowns, validation, red mismatch cells, amber warnings (percentages not adding to 100, counts not adding to outstanding), instruction rows for all three topics, Forces-sheet reference column
+- [x] Tests: 123 unit tests pass; end-to-end QA on the local copy: 35 checks (import preview, commit, re-import = unchanged, export then re-import = unchanged, old template still imports, national figures with a shared department, switches off = nothing public)
+- [ ] **Client to confirm:** which forces share a department; which of the four groups to publish; whether any figure other than the backlog arrives as a percentage; the exact wording and bands of the new FOI questions (the age bands and the service-standard fields are our reading of "backlog ages" and "service standards")
+
 ## 4. Timeline
 
 Assumes work starts **Mon 16 Nov 2026**; the FOI data arrives ~**30 Nov**.
