@@ -60,8 +60,13 @@ final class GCO_PD_Validator {
 		'apps_completed' => array( 'column' => 'apps_completed', 'status' => 'apps_completed_status', 'type' => 'count', 'max' => 4294967295 ),
 		'outstanding'    => array( 'column' => 'outstanding', 'status' => 'outstanding_status', 'type' => 'count', 'max' => 4294967295 ),
 		'oldest'         => array( 'column' => 'oldest_days', 'status' => 'oldest_days_status', 'type' => 'days', 'max' => 65535 ),
-		'standard_days'  => array( 'column' => 'standard_days', 'status' => 'standard_days_status', 'type' => 'days', 'max' => 65535 ),
-		'standard_met'   => array( 'column' => 'standard_met_pct', 'status' => 'standard_met_pct_status', 'type' => 'percent', 'max' => 100 ),
+		// Service standards per category: a number means Actual, blank means Not provided (a range goes in Notes).
+		'std_grant_days'     => array( 'column' => 'std_grant_days', 'status' => 'std_grant_days_status', 'type' => 'days', 'max' => 65535, 'implicit' => true ),
+		'std_grant_pct'      => array( 'column' => 'std_grant_pct', 'status' => 'std_grant_pct_status', 'type' => 'percent', 'max' => 100, 'implicit' => true ),
+		'std_renew_days'     => array( 'column' => 'std_renew_days', 'status' => 'std_renew_days_status', 'type' => 'days', 'max' => 65535, 'implicit' => true ),
+		'std_renew_pct'      => array( 'column' => 'std_renew_pct', 'status' => 'std_renew_pct_status', 'type' => 'percent', 'max' => 100, 'implicit' => true ),
+		'std_variation_days' => array( 'column' => 'std_variation_days', 'status' => 'std_variation_days_status', 'type' => 'days', 'max' => 65535, 'implicit' => true ),
+		'std_variation_pct'  => array( 'column' => 'std_variation_pct', 'status' => 'std_variation_pct_status', 'type' => 'percent', 'max' => 100, 'implicit' => true ),
 	);
 
 	/**
@@ -75,6 +80,27 @@ final class GCO_PD_Validator {
 		'backlog_m6_12'    => '6 to 12 months',
 		'backlog_m12_plus' => 'Over 12 months',
 	);
+
+	/**
+	 * The five application types FOI volumes are broken down by (same keys as the waiting-time metrics).
+	 * Variations apply to firearm certificates only.
+	 *
+	 * @var array<string,string>
+	 */
+	const APP_TYPES = array(
+		'sg_grant'  => 'New shotgun grant',
+		'fac_grant' => 'New firearm grant',
+		'sg_renew'  => 'Shotgun renewal',
+		'fac_renew' => 'Firearm renewal',
+		'variation' => 'Firearm variation',
+	);
+
+	/**
+	 * Yes/No columns: how a force accepts applications.
+	 *
+	 * @var string[]
+	 */
+	const YESNO_COLUMNS = array( 'online_grant', 'online_renew', 'online_variation', 'post_required' );
 
 	const UNIT_COUNT   = 'count';
 	const UNIT_PERCENT = 'percent';
@@ -268,15 +294,20 @@ final class GCO_PD_Validator {
 	 */
 	private static function validate_extras( array $row, array &$clean, array &$errors, array &$warnings ) {
 		foreach ( self::FOI_EXTRA_METRICS as $meta ) {
-			$column = $meta['column'];
+			$column    = $meta['column'];
+			$status_in = $row[ $meta['status'] ] ?? null;
+			if ( ! empty( $meta['implicit'] ) ) {
+				// No status column in the template: a number means Actual, blank means Not provided.
+				$status_in = ( null === ( $row[ $column ] ?? null ) || '' === trim( (string) $row[ $column ] ) ) ? null : self::STATUS_ACTUAL;
+			}
 			if ( 'percent' === $meta['type'] ) {
 				$parsed = self::parse_percent( $row[ $column ] ?? null );
-				$result = self::validate_value_status( $parsed['value'], $row[ $meta['status'] ] ?? null, $meta['max'], true );
+				$result = self::validate_value_status( $parsed['value'], $status_in, $meta['max'], true );
 				if ( $parsed['converted'] && ! $result['error'] ) {
 					$warnings[ $column ] = sprintf( 'Read %s as %s%% (a fraction). If you meant a very small percentage, type it with a %% sign.', rtrim( rtrim( number_format( $parsed['value'] / 100, 4, '.', '' ), '0' ), '.' ), rtrim( rtrim( number_format( $parsed['value'], 2, '.', '' ), '0' ), '.' ) );
 				}
 			} else {
-				$result = self::validate_value_status( $row[ $column ] ?? null, $row[ $meta['status'] ] ?? null, $meta['max'] );
+				$result = self::validate_value_status( $row[ $column ] ?? null, $status_in, $meta['max'] );
 			}
 			if ( $result['error'] ) {
 				$errors[ $column ] = ( 'percent' === $meta['type'] && false === $parsed['value'] ) ? 'Must be a percentage between 0 and 100, or left blank when not provided.' : $result['error'];
@@ -294,10 +325,13 @@ final class GCO_PD_Validator {
 		if ( strlen( $period ) > 120 ) {
 			$errors['volumes_period'] = 'The applications period must be 120 characters or fewer.';
 		}
-		$standard              = isset( $row['standard_text'] ) ? trim( (string) $row['standard_text'] ) : '';
-		$clean['standard_text'] = '' === $standard ? null : $standard;
-		if ( strlen( $standard ) > 255 ) {
-			$errors['standard_text'] = 'The service standard wording must be 255 characters or fewer.';
+		foreach ( self::YESNO_COLUMNS as $column ) {
+			$value = self::normalize_yesno( $row[ $column ] ?? null );
+			if ( false === $value ) {
+				$errors[ $column ] = 'Choose Yes or No, or leave blank when not provided.';
+			} else {
+				$clean[ $column ] = $value;
+			}
 		}
 
 		self::validate_backlog( $row, $clean, $errors, $warnings );
@@ -404,6 +438,82 @@ final class GCO_PD_Validator {
 		) {
 			$warnings['backlog_status'] = sprintf( 'The backlog age bands add up to %s but outstanding applications is %s.', number_format( array_sum( $given ) ), number_format( $clean['outstanding'] ) );
 		}
+	}
+
+	/**
+	 * Yes / No answer typed by a person or read from a spreadsheet.
+	 *
+	 * @param mixed $raw Raw value: Yes, Y, True, 1 / No, N, False, 0 / blank.
+	 * @return string|null|false 'yes', 'no', null when blank, false when unrecognised.
+	 */
+	public static function normalize_yesno( $raw ) {
+		if ( null === $raw ) {
+			return null;
+		}
+		if ( is_bool( $raw ) ) {
+			return $raw ? 'yes' : 'no';
+		}
+		$value = strtolower( trim( (string) $raw ) );
+		if ( '' === $value ) {
+			return null;
+		}
+		if ( in_array( $value, array( 'yes', 'y', 'true', '1', 'accepted', 'required' ), true ) ) {
+			return 'yes';
+		}
+		if ( in_array( $value, array( 'no', 'n', 'false', '0', 'not accepted', 'not required' ), true ) ) {
+			return 'no';
+		}
+		return false;
+	}
+
+	/**
+	 * Application type typed by a person or read from a spreadsheet ("New Shotgun Grant", "sg_grant", "Firearm renewals" ...).
+	 *
+	 * @param mixed $raw Raw type.
+	 * @return string|false Canonical key, or false when unrecognised.
+	 */
+	public static function normalize_app_type( $raw ) {
+		$value = strtolower( trim( (string) $raw ) );
+		$value = preg_replace( '/[^a-z0-9]+/', '', $value );
+		if ( '' === $value ) {
+			return false;
+		}
+		$map = array(
+			'sggrant' => 'sg_grant', 'newshotgungrant' => 'sg_grant', 'newshotgungrants' => 'sg_grant', 'shotgungrant' => 'sg_grant', 'shotgungrants' => 'sg_grant',
+			'newshotguncertificate' => 'sg_grant', 'shotgunnewgrant' => 'sg_grant',
+			'facgrant' => 'fac_grant', 'newfirearmgrant' => 'fac_grant', 'newfirearmgrants' => 'fac_grant', 'firearmgrant' => 'fac_grant', 'firearmgrants' => 'fac_grant',
+			'newfirearmcertificate' => 'fac_grant', 'firearmnewgrant' => 'fac_grant',
+			'sgrenew' => 'sg_renew', 'shotgunrenewal' => 'sg_renew', 'shotgunrenewals' => 'sg_renew',
+			'facrenew' => 'fac_renew', 'firearmrenewal' => 'fac_renew', 'firearmrenewals' => 'fac_renew',
+			'variation' => 'variation', 'variations' => 'variation', 'firearmvariation' => 'variation', 'firearmvariations' => 'variation',
+		);
+		return $map[ $value ] ?? false;
+	}
+
+	/**
+	 * Validates one application-type row (one force, one round, one type): received, completed, outstanding.
+	 *
+	 * @param array $row Raw row: received, received_status, completed, completed_status, outstanding, outstanding_status.
+	 * @return array{clean:array,errors:array<string,string>,warnings:array<string,string>}
+	 */
+	public static function validate_type_row( array $row ) {
+		$clean    = array();
+		$errors   = array();
+		$warnings = array();
+		foreach ( array( 'received', 'completed', 'outstanding' ) as $column ) {
+			$result = self::validate_value_status( $row[ $column ] ?? null, $row[ $column . '_status' ] ?? null, 4294967295 );
+			if ( $result['error'] ) {
+				$errors[ $column ] = $result['error'];
+				continue;
+			}
+			$clean[ $column ]               = $result['value'];
+			$clean[ $column . '_status' ]   = $result['status'];
+		}
+		return array(
+			'clean'    => $clean,
+			'errors'   => $errors,
+			'warnings' => $warnings,
+		);
 	}
 
 	/**

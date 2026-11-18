@@ -37,7 +37,9 @@ defined( 'ABSPATH' ) || exit;
 						'show_volumes'     => 'Applications received and completed',
 						'show_outstanding' => 'Outstanding applications and the oldest outstanding',
 						'show_backlog'     => 'Backlog age (how long outstanding applications have waited)',
-						'show_standards'   => 'Service standards and how often they were met',
+						'show_type_volumes' => 'Received, completed and outstanding by application type',
+						'show_standards'   => 'Service standards (target times and how often they were met)',
+						'show_application_methods' => 'How to apply: online and postal applications',
 					);
 					foreach ( $gco_switches as $gco_key => $gco_text ) :
 						?>

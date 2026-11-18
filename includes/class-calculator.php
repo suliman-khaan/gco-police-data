@@ -23,7 +23,7 @@ final class GCO_PD_Calculator {
 	/**
 	 * Snapshot layout version; bump when the structure changes so old snapshots are rebuilt.
 	 */
-	const SCHEMA = 2;
+	const SCHEMA = 3;
 
 	/**
 	 * Metrics that can be ranked (shorter wait is better). Holders are not ranked.
@@ -102,7 +102,7 @@ final class GCO_PD_Calculator {
 			}
 		}
 
-		self::build_foi( $snapshot, $forces, $rounds, $input['responses'] ?? array() );
+		self::build_foi( $snapshot, $forces, $rounds, $input['responses'] ?? array(), $input['types'] ?? array() );
 		self::build_npcc( $snapshot, $forces, $quarters, $input['npcc'] ?? array() );
 
 		return $snapshot;
@@ -134,6 +134,8 @@ final class GCO_PD_Calculator {
 				),
 				'holders'     => array(),
 				'extra'       => array(),
+				'types'       => array(),
+				'methods'     => array(),
 			),
 			'npcc'         => array(
 				'national'    => null,
@@ -152,8 +154,9 @@ final class GCO_PD_Calculator {
 	 * @param array $forces    Active forces by id.
 	 * @param array $rounds    Published rounds, oldest first.
 	 * @param array $responses Response rows.
+	 * @param array $types     Application-type rows (round_id, force_id, app_type, received, completed, outstanding + statuses).
 	 */
-	private static function build_foi( array &$snapshot, array $forces, array $rounds, array $responses ) {
+	private static function build_foi( array &$snapshot, array $forces, array $rounds, array $responses, array $types = array() ) {
 		if ( ! $rounds ) {
 			return;
 		}
@@ -183,6 +186,17 @@ final class GCO_PD_Calculator {
 				continue;
 			}
 			$by_force[ $force_id ][ $label ] = $row;
+		}
+
+		// force id => round label => app type => row.
+		$types_by = array();
+		foreach ( $types as $row ) {
+			$force_id = (int) $row['force_id'];
+			$label    = $label_by_round[ (int) $row['round_id'] ] ?? null;
+			if ( null === $label || ! isset( $forces[ $force_id ] ) || empty( $row['app_type'] ) ) {
+				continue;
+			}
+			$types_by[ $force_id ][ $label ][ $row['app_type'] ] = $row;
 		}
 
 		$current  = array(); // slug => array{label, row, metrics}.
@@ -220,11 +234,13 @@ final class GCO_PD_Calculator {
 			$idx     = $index_by_label[ $label ];
 
 			// Change vs the adjacent previous round, only when this force answered it too.
-			$previous     = null;
-			$previous_row = null;
+			$previous       = null;
+			$previous_row   = null;
+			$previous_types = array();
 			if ( $idx > 0 && isset( $by_force[ $force_id ][ $rounds[ $idx - 1 ]['label'] ] ) ) {
-				$previous_row = $by_force[ $force_id ][ $rounds[ $idx - 1 ]['label'] ];
-				$previous     = self::metric_values( $previous_row );
+				$previous_row   = $by_force[ $force_id ][ $rounds[ $idx - 1 ]['label'] ];
+				$previous       = self::metric_values( $previous_row );
+				$previous_types = $types_by[ $force_id ][ $rounds[ $idx - 1 ]['label'] ] ?? array();
 			}
 			foreach ( $metrics as $key => $metric ) {
 				$metrics[ $key ]['rank']      = null;
@@ -238,7 +254,7 @@ final class GCO_PD_Calculator {
 				}
 			}
 
-			$extra = self::extra_figures( $row, $previous_row );
+			$extra = self::extra_figures( $row, $previous_row, $types_by[ $force_id ][ $label ] ?? array(), $previous_types );
 
 			$current[ $slug ] = array(
 				'label'   => $label,
@@ -353,7 +369,9 @@ final class GCO_PD_Calculator {
 			$snapshot['foi']['metrics'][ $key ]['n_forces'] = count( $items );
 			$snapshot['foi']['metrics'][ $key ]['merged']   = $unique['merged'];
 		}
-		$snapshot['foi']['extra'] = self::national_extras( $current, $group_of );
+		$snapshot['foi']['extra']   = self::national_extras( $current, $group_of );
+		$snapshot['foi']['types']   = self::national_types( $current, $group_of );
+		$snapshot['foi']['methods'] = self::national_methods( $current );
 		foreach ( array( 'sg_holders', 'fac_holders' ) as $key ) {
 			$snapshot['foi']['holders'][ $key ] = array(
 				'n'   => $snapshot['foi']['metrics'][ $key ]['n'],
@@ -785,17 +803,20 @@ final class GCO_PD_Calculator {
 	}
 
 	/**
-	 * The extra figures of one force's current response, with the change since the previous round.
-	 * Null when the force gave none of them (so older rounds and forces that skipped the questions show nothing).
+	 * The extra figures of one force's current response, with the change since the previous round: overall
+	 * volumes, backlog, service standards per category, online/post answers and the figures by application
+	 * type. Null when the force gave none of them (so older rounds and forces that skipped the questions show nothing).
 	 *
-	 * @param array      $row      Current response row.
-	 * @param array|null $previous Previous round's row for this force, when it answered that round too.
+	 * @param array      $row            Current response row.
+	 * @param array|null $previous       Previous round's row for this force, when it answered that round too.
+	 * @param array      $types          app type => type row of the current round.
+	 * @param array      $previous_types app type => type row of the previous round.
 	 * @return array|null
 	 */
-	private static function extra_figures( array $row, $previous ) {
-		$metrics  = self::extra_metric_values( $row );
-		$before   = $previous ? self::extra_metric_values( $previous ) : null;
-		$any      = false;
+	private static function extra_figures( array $row, $previous, array $types = array(), array $previous_types = array() ) {
+		$metrics = self::extra_metric_values( $row );
+		$before  = $previous ? self::extra_metric_values( $previous ) : null;
+		$any     = false;
 		foreach ( $metrics as $key => $metric ) {
 			$metrics[ $key ]['change']    = null;
 			$metrics[ $key ]['direction'] = null;
@@ -810,12 +831,12 @@ final class GCO_PD_Calculator {
 		}
 
 		// Backlog age bands: one unit and one status for the group.
-		$unit    = ( $row['backlog_unit'] ?? GCO_PD_Validator::UNIT_COUNT ) === GCO_PD_Validator::UNIT_PERCENT ? GCO_PD_Validator::UNIT_PERCENT : GCO_PD_Validator::UNIT_COUNT;
-		$status  = $row['backlog_status'] ?? GCO_PD_Validator::STATUS_NOT_PROVIDED;
-		$bands   = array();
-		$given   = 0;
-		$sum     = 0;
-		$usable  = in_array( $status, array( GCO_PD_Validator::STATUS_ACTUAL, GCO_PD_Validator::STATUS_ESTIMATE ), true );
+		$unit   = ( $row['backlog_unit'] ?? GCO_PD_Validator::UNIT_COUNT ) === GCO_PD_Validator::UNIT_PERCENT ? GCO_PD_Validator::UNIT_PERCENT : GCO_PD_Validator::UNIT_COUNT;
+		$status = $row['backlog_status'] ?? GCO_PD_Validator::STATUS_NOT_PROVIDED;
+		$bands  = array();
+		$given  = 0;
+		$sum    = 0;
+		$usable = in_array( $status, array( GCO_PD_Validator::STATUS_ACTUAL, GCO_PD_Validator::STATUS_ESTIMATE ), true );
 		foreach ( GCO_PD_Validator::BACKLOG_BANDS as $column => $label ) {
 			$raw   = $row[ $column ] ?? null;
 			$value = ( $usable && null !== $raw && '' !== $raw ) ? ( GCO_PD_Validator::UNIT_PERCENT === $unit ? round( (float) $raw, 2 ) : (int) $raw ) : null;
@@ -837,20 +858,138 @@ final class GCO_PD_Calculator {
 			'total'  => GCO_PD_Validator::UNIT_COUNT === $unit ? $sum : null,
 		) : null;
 
-		$period   = isset( $row['volumes_period'] ) && '' !== trim( (string) $row['volumes_period'] ) ? trim( (string) $row['volumes_period'] ) : null;
-		$standard = isset( $row['standard_text'] ) && '' !== trim( (string) $row['standard_text'] ) ? trim( (string) $row['standard_text'] ) : null;
+		// How applications can be made: Yes / No answers, null when not answered.
+		$methods     = array();
+		$has_methods = false;
+		foreach ( GCO_PD_Validator::YESNO_COLUMNS as $column ) {
+			$value             = $row[ $column ] ?? null;
+			$methods[ $column ] = in_array( $value, array( 'yes', 'no' ), true ) ? $value : null;
+			$has_methods       = $has_methods || null !== $methods[ $column ];
+		}
 
-		if ( ! $any && ! $backlog && ! $standard ) {
+		// Figures by application type, each with the change since the previous round.
+		$by_type  = array();
+		$has_type = false;
+		foreach ( array_keys( GCO_PD_Validator::APP_TYPES ) as $type ) {
+			if ( empty( $types[ $type ] ) ) {
+				continue;
+			}
+			$figures = array();
+			foreach ( array( 'received', 'completed', 'outstanding' ) as $column ) {
+				$now    = self::type_metric( $types[ $type ], $column );
+				$prev   = ! empty( $previous_types[ $type ] ) ? self::type_metric( $previous_types[ $type ], $column ) : null;
+				$now['change']    = null;
+				$now['direction'] = null;
+				if ( self::usable( $now ) ) {
+					$has_type = true;
+					if ( $prev && self::usable( $prev ) ) {
+						$delta            = $now['value'] - $prev['value'];
+						$now['change']    = $delta;
+						$now['direction'] = $delta < 0 ? 'down' : ( $delta > 0 ? 'up' : 'same' );
+					}
+				}
+				$figures[ $column ] = $now;
+			}
+			$by_type[ $type ] = $figures;
+		}
+
+		$period = isset( $row['volumes_period'] ) && '' !== trim( (string) $row['volumes_period'] ) ? trim( (string) $row['volumes_period'] ) : null;
+
+		if ( ! $any && ! $backlog && ! $has_methods && ! $has_type ) {
 			return null;
 		}
 		return array(
-			'period'   => $period,
-			'standard' => $standard,
-			'metrics'  => $metrics,
-			'backlog'  => $backlog,
+			'period'  => $period,
+			'metrics' => $metrics,
+			'backlog' => $backlog,
+			'methods' => $has_methods ? $methods : null,
+			'types'   => $has_type ? $by_type : null,
 		);
 	}
 
+	/**
+	 * One figure of a type row as value + status (a value without a usable status is not a figure).
+	 *
+	 * @param array  $row    Type row.
+	 * @param string $column received | completed | outstanding.
+	 * @return array{value:?int,status:string}
+	 */
+	private static function type_metric( array $row, $column ) {
+		$raw    = $row[ $column ] ?? null;
+		$status = $row[ $column . '_status' ] ?? GCO_PD_Validator::STATUS_NOT_PROVIDED;
+		if ( null === $raw || '' === $raw || ! in_array( $status, array( GCO_PD_Validator::STATUS_ACTUAL, GCO_PD_Validator::STATUS_ESTIMATE ), true ) ) {
+			return array(
+				'value'  => null,
+				'status' => GCO_PD_Validator::STATUS_NOT_PROVIDED,
+			);
+		}
+		return array(
+			'value'  => (int) $raw,
+			'status' => $status,
+		);
+	}
+
+	/**
+	 * National totals per application type: received, completed and outstanding, each department counted once.
+	 *
+	 * @param array $current  slug => current data (with 'extra').
+	 * @param array $group_of slug => shared group key.
+	 * @return array<string,array<string,array>> type => figure => summary.
+	 */
+	private static function national_types( array $current, array $group_of ) {
+		$out = array();
+		foreach ( array_keys( GCO_PD_Validator::APP_TYPES ) as $type ) {
+			foreach ( array( 'received', 'completed', 'outstanding' ) as $column ) {
+				$items = array();
+				$est   = 0;
+				foreach ( $current as $slug => $data ) {
+					$metric = $data['extra']['types'][ $type ][ $column ] ?? null;
+					if ( $metric && self::usable( $metric ) ) {
+						$items[ $slug ] = $metric['value'];
+					}
+				}
+				$unique = self::unique_departments( $items, $group_of );
+				$sum    = null;
+				foreach ( $unique['keys'] as $slug ) {
+					$sum = ( $sum ?? 0 ) + $items[ $slug ];
+					if ( GCO_PD_Validator::STATUS_ESTIMATE === $current[ $slug ]['extra']['types'][ $type ][ $column ]['status'] ) {
+						++$est;
+					}
+				}
+				$out[ $type ][ $column ] = array(
+					'sum'       => $sum,
+					'n'         => count( $unique['keys'] ),
+					'n_forces'  => count( $items ),
+					'merged'    => $unique['merged'],
+					'estimates' => $est,
+				);
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * How many forces accept online applications / still require post: yes, no, and not answered.
+	 *
+	 * @param array $current slug => current data (with 'extra').
+	 * @return array<string,array{yes:int,no:int,unknown:int}>
+	 */
+	private static function national_methods( array $current ) {
+		$out = array();
+		foreach ( GCO_PD_Validator::YESNO_COLUMNS as $column ) {
+			$counts = array(
+				'yes'     => 0,
+				'no'      => 0,
+				'unknown' => 0,
+			);
+			foreach ( $current as $data ) {
+				$value = $data['extra']['methods'][ $column ] ?? null;
+				++$counts[ in_array( $value, array( 'yes', 'no' ), true ) ? $value : 'unknown' ];
+			}
+			$out[ $column ] = $counts;
+		}
+		return $out;
+	}
 	/**
 	 * National figures for the extra FOI metrics, each department counted once.
 	 *

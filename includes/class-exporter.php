@@ -99,6 +99,12 @@ final class GCO_PD_Exporter {
 						case 'pdf_file':
 							$line[] = $row->pdf_id ? wp_basename( (string) get_attached_file( (int) $row->pdf_id ) ) : '';
 							break;
+						case 'online_grant':
+						case 'online_renew':
+						case 'online_variation':
+						case 'post_required':
+							$line[] = 'yes' === $row->$field ? 'Yes' : ( 'no' === $row->$field ? 'No' : '' );
+							break;
 						case 'backlog_unit':
 							$line[] = GCO_PD_Validator::UNIT_PERCENT === $row->backlog_unit ? 'Percentage' : 'Count';
 							break;
@@ -106,11 +112,60 @@ final class GCO_PD_Exporter {
 							if ( '_status' === substr( $field, -7 ) ) {
 								$line[] = self::status_label( $row->$field );
 							} else {
-								$line[] = ( isset( GCO_PD_Validator::BACKLOG_BANDS[ $field ] ) || 'standard_met_pct' === $field ) ? self::plain_number( $row->$field ?? null ) : ( $row->$field ?? null );
+								$line[] = ( isset( GCO_PD_Validator::BACKLOG_BANDS[ $field ] ) || '_pct' === substr( $field, -4 ) ) ? self::plain_number( $row->$field ?? null ) : ( $row->$field ?? null );
 							}
 					}
 				}
 				$lines[] = $line;
+			}
+		}
+		return self::to_csv( $lines );
+	}
+
+	/**
+	 * FOI Application Types CSV for the given rounds (all when empty): one row per force per application type,
+	 * with the exact headers of the "FOI Application Types" sheet so it can be imported again.
+	 *
+	 * @param int[] $round_ids Round ids.
+	 * @return string CSV with a UTF-8 BOM.
+	 */
+	public static function types_csv( array $round_ids = array() ) {
+		$forces = array();
+		foreach ( GCO_PD_Repository::get_forces() as $force ) {
+			$forces[ (int) $force->id ] = $force->name;
+		}
+		$order = array_flip( array_keys( GCO_PD_Validator::APP_TYPES ) );
+		$lines = array( array_values( GCO_PD_Import_Parser::TYPE_HEADERS ) );
+
+		foreach ( array_reverse( GCO_PD_Repository::get_rounds() ) as $round ) {
+			if ( $round_ids && ! in_array( (int) $round->id, $round_ids, true ) ) {
+				continue;
+			}
+			$rows = array();
+			foreach ( GCO_PD_Repository::get_type_rows( (int) $round->id ) as $force_id => $by_type ) {
+				foreach ( $by_type as $type => $row ) {
+					$rows[] = array( $forces[ (int) $force_id ] ?? '', $order[ $type ] ?? 99, $type, $row );
+				}
+			}
+			usort(
+				$rows,
+				static function ( $a, $b ) {
+					return array( $a[0], $a[1] ) <=> array( $b[0], $b[1] );
+				}
+			);
+			foreach ( $rows as $item ) {
+				$row     = $item[3];
+				$lines[] = array(
+					$round->label,
+					$item[0],
+					ucwords( GCO_PD_Validator::APP_TYPES[ $item[2] ] ),
+					$row->received,
+					self::status_label( $row->received_status ),
+					$row->completed,
+					self::status_label( $row->completed_status ),
+					$row->outstanding,
+					self::status_label( $row->outstanding_status ),
+				);
 			}
 		}
 		return self::to_csv( $lines );
