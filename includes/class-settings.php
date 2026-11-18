@@ -27,7 +27,9 @@ final class GCO_PD_Settings {
 			'show_volumes'    => false, // Applications received / completed on force pages.
 			'show_outstanding' => false, // Outstanding applications and the oldest outstanding.
 			'show_backlog'    => false, // Backlog age bands.
-			'show_standards'  => false, // Service standards and how often they were met.
+			'show_standards'  => false, // Service standards per category and how often they were met.
+			'show_type_volumes' => false, // Received / completed / outstanding by application type.
+			'show_application_methods' => false, // Online and postal applications.
 			'portal_page_id'  => 0,     // The police licensing portal page (its page cache is cleared on publish).
 		);
 	}

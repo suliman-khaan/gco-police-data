@@ -32,7 +32,7 @@ defined( 'ABSPATH' ) || exit;
 	<?php endif; ?>
 
 	<div class="gco-pd-fapps">
-		<?php foreach ( array( 'volumes', 'outstanding', 'standards' ) as $gco_key ) : ?>
+		<?php foreach ( array( 'volumes', 'outstanding' ) as $gco_key ) : ?>
 			<?php
 			if ( empty( $sections[ $gco_key ] ) ) {
 				continue;
@@ -68,6 +68,80 @@ defined( 'ABSPATH' ) || exit;
 			</section>
 		<?php endforeach; ?>
 	</div>
+
+	<?php if ( ! empty( $sections['methods'] ) ) : ?>
+		<section class="gco-pd-fapps__methods">
+			<h3 class="gco-pd-fsub"><?php echo GCO_PD_Icons::get( 'document' ); ?> <?php echo esc_html( $sections['methods']['title'] ); ?></h3>
+			<ul class="gco-pd-methods">
+				<?php foreach ( $sections['methods']['rows'] as $gco_row ) : ?>
+					<li>
+						<span><?php echo esc_html( $gco_row['label'] ); ?></span>
+						<span class="gco-pd-badge gco-pd-badge--<?php echo $gco_row['value'] === $gco_row['good'] ? 'actual' : 'not_provided'; ?>"><?php echo 'yes' === $gco_row['value'] ? 'Yes' : 'No'; ?></span>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+		</section>
+	<?php endif; ?>
+
+	<?php if ( ! empty( $sections['types'] ) ) : ?>
+		<section class="gco-pd-fapps__table">
+			<h3 class="gco-pd-fsub"><?php echo GCO_PD_Icons::get( 'chart' ); ?> <?php echo esc_html( $sections['types']['title'] ); ?></h3>
+			<?php if ( ! empty( $sections['types']['note'] ) ) : ?>
+				<p class="gco-pd-note"><?php echo esc_html( $sections['types']['note'] ); ?></p>
+			<?php endif; ?>
+			<div class="gco-pd-scroll">
+				<table class="gco-pd-table">
+					<caption class="gco-pd-sr"><?php echo esc_html( $name . ' applications received, completed and outstanding by application type' ); ?></caption>
+					<thead><tr><th scope="col">Application type</th><th scope="col" class="gco-pd-num">Received</th><th scope="col" class="gco-pd-num">Completed</th><th scope="col" class="gco-pd-num">Outstanding</th></tr></thead>
+					<tbody>
+					<?php foreach ( $sections['types']['rows'] as $gco_row ) : ?>
+						<tr>
+							<th scope="row"><?php echo esc_html( $gco_row['label'] ); ?></th>
+							<?php foreach ( array( 'received', 'completed', 'outstanding' ) as $gco_col ) : ?>
+								<td class="gco-pd-num">
+									<?php if ( $gco_row[ $gco_col ] ) : ?>
+										<strong><?php echo esc_html( $gco_row[ $gco_col ]['text'] ); ?></strong>
+										<?php if ( $gco_row[ $gco_col ]['estimate'] ) : ?>
+											<abbr class="gco-pd-est" title="Estimate">*</abbr>
+										<?php endif; ?>
+										<?php if ( $gco_row[ $gco_col ]['change'] ) : ?>
+											<span class="gco-pd-fchange"><?php echo GCO_PD_Shortcodes::change_html( $gco_row[ $gco_col ]['change'] ); ?></span>
+										<?php endif; ?>
+									<?php else : ?>
+										<span class="gco-pd-na">Not provided</span>
+									<?php endif; ?>
+								</td>
+							<?php endforeach; ?>
+						</tr>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
+			</div>
+			<p class="gco-pd-note">* Estimate. Change is since the previous FOI round.</p>
+		</section>
+	<?php endif; ?>
+
+	<?php if ( ! empty( $sections['standards'] ) ) : ?>
+		<section class="gco-pd-fapps__table">
+			<h3 class="gco-pd-fsub"><?php echo GCO_PD_Icons::get( 'clock' ); ?> <?php echo esc_html( $sections['standards']['title'] ); ?></h3>
+			<p class="gco-pd-note">The force's own target processing time and the share of applications completed within it, where recorded.</p>
+			<div class="gco-pd-scroll">
+				<table class="gco-pd-table">
+					<caption class="gco-pd-sr"><?php echo esc_html( $name . ' service standards' ); ?></caption>
+					<thead><tr><th scope="col">Application</th><th scope="col" class="gco-pd-num">Target processing time</th><th scope="col" class="gco-pd-num">Completed within target</th></tr></thead>
+					<tbody>
+					<?php foreach ( $sections['standards']['rows'] as $gco_row ) : ?>
+						<tr>
+							<th scope="row"><?php echo esc_html( $gco_row['label'] ); ?></th>
+							<td class="gco-pd-num"><?php echo null === $gco_row['days'] ? '<span class="gco-pd-na">Not provided</span>' : '<strong>' . esc_html( $gco_row['days'] ) . '</strong>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td>
+							<td class="gco-pd-num"><?php echo null === $gco_row['pct'] ? '<span class="gco-pd-na">Not recorded</span>' : '<strong>' . esc_html( $gco_row['pct'] ) . '</strong>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td>
+						</tr>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
+			</div>
+		</section>
+	<?php endif; ?>
 
 	<?php if ( ! empty( $sections['backlog'] ) ) : ?>
 		<?php $gco_backlog = $sections['backlog']; ?>

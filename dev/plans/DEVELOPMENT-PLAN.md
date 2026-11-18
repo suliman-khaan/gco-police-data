@@ -172,9 +172,9 @@ Emma (client) raised three points; all three are built, optional and off by defa
 - [x] Tests: 123 unit tests pass; end-to-end QA on the local copy: 35 checks (import preview, commit, re-import = unchanged, export then re-import = unchanged, old template still imports, national figures with a shared department, switches off = nothing public)
 - [ ] **Client to confirm:** which forces share a department; which of the four groups to publish; whether any figure other than the backlog arrives as a percentage; the exact wording and bands of the new FOI questions (the age bands and the service-standard fields are our reading of "backlog ages" and "service standards")
 
-### M9 — FOI data by application type, per-type service standards, online/post · `feature/m9-by-type` · **REQUIREMENTS FINAL** (client confirmed 18 Nov 2026)
+### M9 — FOI data by application type, per-type service standards, online/post · `feature/m9-by-type` · **BUILT** (requirements confirmed by the client 18 Nov 2026)
 
-**Status:** all questions answered; building. The data sheet (template v3) is the single source of truth and is built together with the plugin so nothing is done twice.
+**Status:** built and tested on the local copy; version 0.5.0. The data sheet (template v3) is the single source of truth and is built together with the plugin so nothing is done twice.
 
 #### 1. What the client confirmed
 
@@ -213,6 +213,16 @@ Unit tests (validator, parser, calculator, exporter) plus an end-to-end run on t
 About 3 to 4 working days. Main risks: the client changing a column after the build starts (mitigated: template v3 is the contract, shown to the client first); an overall total that disagrees with the sum of types (warning only, both kept as given); a type answered for some forces only (missing stays "Not provided", never 0, and national totals say how many forces answered); publishing sensitive figures by accident (everything off by default).
 
 **Done when:** template v3 imports cleanly through the preview, a round round-trips through export and re-import unchanged, national figures count each shared department once, nothing new is visible until its switch is on, and the earlier suites still pass.
+
+
+#### 7. Result
+
+- [x] Schema v5 (`gco_response_types`, six standards, online/post); the M8 single-standard columns are left in place, unused
+- [x] Template v3: `FOI Data` (45 columns, client's six exact headers), new `FOI Application Types` sheet, four shared groups listed on the Forces sheet; headers generated from the plugin's own constants
+- [x] Importer reads both sheets (types preview, duplicates, unknown types, overall-vs-types warning, blank main row created when a force only has type rows), exporter writes both (round-trip unchanged), v1 files still import
+- [x] Calculator: per-force types block with change, national totals per type counting a shared department once, standards averages, online/post counts (a blank is never "no")
+- [x] Round editor: third tab (215 rows, one JSON field, about 79 KB), second tab updated; Settings: six publish switches, all off; force page: by-type table, standards table, how-to-apply strip; portal cards `outstanding` and `online`
+- [x] Tests: 138 unit tests; end-to-end QA on the local copy: 43 checks (including the real grid save handler with a by-type payload), plus the earlier suites (data rules 21, security 14, shared-department warning 5) all passing
 
 ## 4. Timeline
 

@@ -2,11 +2,13 @@
 /**
  * Round editor: one row per force. Two tabs share one form and one Save button:
  *  1. Waiting times and holders (value + status per metric)
- *  2. Applications, backlog and service standards (the extra figures)
+ *  2. Applications, backlog, service standards and how to apply (the extra figures)
+ *  3. Figures by application type (received, completed, outstanding for each of the five types)
  *
  * @var object   $round     Round.
  * @var object[] $forces    Forces to list.
  * @var array    $responses Force id => response row.
+ * @var array    $types     Force id => app type => type row.
  * @var array    $failed    Rows from a failed save: errors and the values as typed.
  *
  * @package GCO_Police_Data
@@ -29,8 +31,23 @@ $extra_labels   = array(
 	'apps_completed' => 'Applications completed',
 	'outstanding'    => 'Outstanding applications',
 	'oldest'         => 'Oldest outstanding (days)',
-	'standard_days'  => 'Service standard (days)',
-	'standard_met'   => 'Met the standard (%)',
+	'std_grant_days'     => 'New grants: target (days)',
+	'std_grant_pct'      => 'New grants: within target (%)',
+	'std_renew_days'     => 'Renewals: target (days)',
+	'std_renew_pct'      => 'Renewals: within target (%)',
+	'std_variation_days' => 'Variations: target (days)',
+	'std_variation_pct'  => 'Variations: within target (%)',
+);
+$yesno_labels = array(
+	'online_grant'     => 'Online: new grants',
+	'online_renew'     => 'Online: renewals',
+	'online_variation' => 'Online: variations',
+	'post_required'    => 'Post still required',
+);
+$yesno_options = array(
+	''    => '—',
+	'yes' => 'Yes',
+	'no'  => 'No',
 );
 $status_options = array(
 	'actual'       => 'Actual',
@@ -44,21 +61,33 @@ $unit_options   = array(
 $disabled = $is_published ? ' disabled' : '';
 
 // Error keys that belong to the second tab.
-$extra_cols = array( 'backlog_unit', 'backlog_status', 'volumes_period', 'standard_text' );
+$extra_cols = array( 'backlog_unit', 'backlog_status', 'volumes_period' );
 foreach ( GCO_PD_Validator::FOI_EXTRA_METRICS as $gco_meta ) {
 	$extra_cols[] = $gco_meta['column'];
 }
-$extra_cols = array_merge( $extra_cols, array_keys( GCO_PD_Validator::BACKLOG_BANDS ) );
+$extra_cols    = array_merge( $extra_cols, array_keys( GCO_PD_Validator::BACKLOG_BANDS ), GCO_PD_Validator::YESNO_COLUMNS );
 $errors_waits  = 0;
 $errors_extras = 0;
+$errors_types  = 0;
 foreach ( (array) ( $failed['errors'] ?? array() ) as $gco_row_errors ) {
 	foreach ( array_keys( (array) $gco_row_errors ) as $gco_col ) {
-		in_array( $gco_col, $extra_cols, true ) ? ++$errors_extras : ++$errors_waits;
+		if ( 0 === strpos( (string) $gco_col, 'types.' ) ) {
+			++$errors_types;
+		} elseif ( in_array( $gco_col, $extra_cols, true ) ) {
+			++$errors_extras;
+		} else {
+			++$errors_waits;
+		}
 	}
 }
-$tab_open = isset( $_GET['tab'] ) && 'extras' === sanitize_key( wp_unslash( $_GET['tab'] ) ) ? 'extras' : 'waits'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-if ( $errors_extras && ! $errors_waits ) {
-	$tab_open = 'extras';
+$tab_open = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'waits'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$tab_open = in_array( $tab_open, array( 'waits', 'extras', 'types' ), true ) ? $tab_open : 'waits';
+if ( ! $errors_waits ) {
+	if ( $errors_extras ) {
+		$tab_open = 'extras';
+	} elseif ( $errors_types ) {
+		$tab_open = 'types';
+	}
 }
 
 /**
@@ -72,6 +101,15 @@ $gco_extra_cell = static function ( $key, $force, array $ctx ) {
 	$meta   = GCO_PD_Validator::FOI_EXTRA_METRICS[ $key ];
 	$status = $ctx['get']( $meta['status'], 'not_provided' );
 	$kind   = $meta['type'];
+	if ( ! empty( $meta['implicit'] ) ) {
+		// A number means Actual, blank means Not provided: no status column.
+		?>
+		<td class="gco-pd-metric<?php echo isset( $ctx['errors'][ $meta['column'] ] ) ? ' is-bad' : ''; ?>">
+			<input type="number" min="0" <?php echo 'percent' === $kind ? 'max="100" step="0.01"' : 'step="1"'; ?> data-f="<?php echo esc_attr( $meta['column'] ); ?>" data-kind="<?php echo esc_attr( $kind ); ?>" value="<?php echo esc_attr( $ctx['get']( $meta['column'] ) ); ?>" aria-label="<?php echo esc_attr( $force->name . ' ' . $ctx['labels'][ $key ] ); ?>"<?php echo $ctx['disabled']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+		</td>
+		<?php
+		return;
+	}
 	?>
 	<td class="gco-pd-metric<?php echo isset( $ctx['errors'][ $meta['column'] ] ) ? ' is-bad' : ''; ?>">
 		<input type="number" min="0" <?php echo 'percent' === $kind ? 'max="100" step="0.01"' : 'step="1"'; ?> data-f="<?php echo esc_attr( $meta['column'] ); ?>" data-status="<?php echo esc_attr( $meta['status'] ); ?>" data-kind="<?php echo esc_attr( $kind ); ?>" value="<?php echo esc_attr( $ctx['get']( $meta['column'] ) ); ?>" aria-label="<?php echo esc_attr( $force->name . ' ' . $ctx['labels'][ $key ] ); ?>"<?php echo $ctx['disabled']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
@@ -118,6 +156,7 @@ $gco_extra_cell = static function ( $key, $force, array $ctx ) {
 	<nav class="nav-tab-wrapper gco-pd-gridtabs" role="tablist" aria-label="Figures">
 		<a href="#gco-pd-grid-waits" class="nav-tab<?php echo 'waits' === $tab_open ? ' nav-tab-active' : ''; ?>" role="tab" data-gco-gridtab="waits">Waiting times &amp; holders<?php echo $errors_waits ? ' <span class="gco-pd-tabflag" title="Rows with problems">!</span>' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></a>
 		<a href="#gco-pd-grid-extras" class="nav-tab<?php echo 'extras' === $tab_open ? ' nav-tab-active' : ''; ?>" role="tab" data-gco-gridtab="extras">Applications, backlog &amp; standards<?php echo $errors_extras ? ' <span class="gco-pd-tabflag" title="Rows with problems">!</span>' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></a>
+		<a href="#gco-pd-grid-types" class="nav-tab<?php echo 'types' === $tab_open ? ' nav-tab-active' : ''; ?>" role="tab" data-gco-gridtab="types">By application type<?php echo $errors_types ? ' <span class="gco-pd-tabflag" title="Rows with problems">!</span>' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></a>
 	</nav>
 
 	<div class="gco-pd-scroll" id="gco-pd-grid-waits" data-gco-grid="waits"<?php echo 'waits' === $tab_open ? '' : ' hidden'; ?>>
@@ -185,7 +224,7 @@ $gco_extra_cell = static function ( $key, $force, array $ctx ) {
 				</td>
 				<td class="gco-pd-msg">
 					<?php foreach ( $errors as $gco_col => $message ) : ?>
-						<?php if ( ! in_array( $gco_col, $extra_cols, true ) ) : ?>
+						<?php if ( ! in_array( $gco_col, $extra_cols, true ) && 0 !== strpos( (string) $gco_col, 'types.' ) ) : ?>
 							<div class="gco-pd-error"><?php echo esc_html( $message ); ?></div>
 						<?php endif; ?>
 					<?php endforeach; ?>
@@ -212,9 +251,12 @@ $gco_extra_cell = static function ( $key, $force, array $ctx ) {
 					<th>Backlog: <?php echo esc_html( strtolower( $band_label ) ); ?></th>
 				<?php endforeach; ?>
 				<th>Backlog status</th>
-				<th>Service standard (wording)</th>
-				<th><?php echo esc_html( $extra_labels['standard_days'] ); ?></th>
-				<th><?php echo esc_html( $extra_labels['standard_met'] ); ?></th>
+				<?php foreach ( array( 'std_grant_days', 'std_grant_pct', 'std_renew_days', 'std_renew_pct', 'std_variation_days', 'std_variation_pct' ) as $gco_std ) : ?>
+					<th><?php echo esc_html( $extra_labels[ $gco_std ] ); ?></th>
+				<?php endforeach; ?>
+				<?php foreach ( $yesno_labels as $gco_yn_label ) : ?>
+					<th><?php echo esc_html( $gco_yn_label ); ?></th>
+				<?php endforeach; ?>
 				<th>Problems</th>
 			</tr>
 		</thead>
@@ -280,9 +322,18 @@ $gco_extra_cell = static function ( $key, $force, array $ctx ) {
 						<?php endforeach; ?>
 					</select>
 				</td>
-				<td><input type="text" data-f="standard_text" value="<?php echo esc_attr( $get( 'standard_text' ) ); ?>" maxlength="255" aria-label="<?php echo esc_attr( $force->name . ' service standard wording' ); ?>"<?php echo $disabled; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></td>
-				<?php $gco_extra_cell( 'standard_days', $force, $ctx ); ?>
-				<?php $gco_extra_cell( 'standard_met', $force, $ctx ); ?>
+				<?php foreach ( array( 'std_grant_days', 'std_grant_pct', 'std_renew_days', 'std_renew_pct', 'std_variation_days', 'std_variation_pct' ) as $gco_std ) : ?>
+					<?php $gco_extra_cell( $gco_std, $force, $ctx ); ?>
+				<?php endforeach; ?>
+				<?php foreach ( $yesno_labels as $gco_yn_col => $gco_yn_label ) : ?>
+					<td class="gco-pd-metric<?php echo isset( $errors[ $gco_yn_col ] ) ? ' is-bad' : ''; ?>">
+						<select data-f="<?php echo esc_attr( $gco_yn_col ); ?>" aria-label="<?php echo esc_attr( $force->name . ' ' . $gco_yn_label ); ?>"<?php echo $disabled; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+							<?php foreach ( $yesno_options as $gco_value => $gco_text ) : ?>
+								<option value="<?php echo esc_attr( $gco_value ); ?>" <?php selected( $get( $gco_yn_col, '' ), $gco_value ); ?>><?php echo esc_html( $gco_text ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</td>
+				<?php endforeach; ?>
 				<td class="gco-pd-msg">
 					<?php foreach ( $errors as $gco_col => $message ) : ?>
 						<?php if ( in_array( $gco_col, $extra_cols, true ) ) : ?>
@@ -292,6 +343,78 @@ $gco_extra_cell = static function ( $key, $force, array $ctx ) {
 					<div class="gco-pd-live-error" hidden></div>
 				</td>
 			</tr>
+		<?php endforeach; ?>
+		</tbody>
+	</table>
+	</div>
+
+	<div class="gco-pd-scroll" id="gco-pd-grid-types" data-gco-grid="types"<?php echo 'types' === $tab_open ? '' : ' hidden'; ?>>
+	<table class="widefat gco-pd-grid gco-pd-grid--types">
+		<thead>
+			<tr>
+				<th class="gco-pd-sticky">Force</th>
+				<th>Application type</th>
+				<th>Received</th>
+				<th>Completed</th>
+				<th>Outstanding</th>
+				<th>Problems</th>
+			</tr>
+		</thead>
+		<tbody>
+		<?php foreach ( $forces as $force ) : ?>
+			<?php
+			$id      = (int) $force->id;
+			$errors  = $failed['errors'][ $id ] ?? array();
+			$typed   = $failed['rows'][ $id ]['types'] ?? null;
+			$stored  = $types[ $id ] ?? array();
+			$first   = true;
+			?>
+			<?php foreach ( GCO_PD_Validator::APP_TYPES as $gco_type => $gco_type_label ) : ?>
+				<?php
+				$gco_get = static function ( $field, $default = '' ) use ( $typed, $stored, $gco_type ) {
+					if ( null !== $typed ) {
+						return (string) ( $typed[ $gco_type ][ $field ] ?? $default );
+					}
+					if ( isset( $stored[ $gco_type ]->$field ) && null !== $stored[ $gco_type ]->$field ) {
+						return (string) $stored[ $gco_type ]->$field;
+					}
+					return $default;
+				};
+				$gco_prefix = 'types.' . $gco_type . '.';
+				?>
+				<tr class="gco-pd-row gco-pd-typerow<?php echo $first ? ' gco-pd-typerow--first' : ''; ?>" data-force="<?php echo esc_attr( (string) $id ); ?>" data-type="<?php echo esc_attr( $gco_type ); ?>">
+					<th class="gco-pd-sticky">
+						<?php if ( $first ) : ?>
+							<?php echo esc_html( $force->name ); ?><?php echo $force->is_active ? '' : ' <em>(inactive)</em>'; ?>
+							<?php if ( ! empty( $force->shared_group ) ) : ?>
+								<span class="gco-pd-shared" title="Shares a licensing department: <?php echo esc_attr( $force->shared_group ); ?>">shared</span>
+							<?php endif; ?>
+						<?php else : ?>
+							<span class="gco-pd-sr"><?php echo esc_html( $force->name ); ?></span>
+						<?php endif; ?>
+					</th>
+					<td><?php echo esc_html( $gco_type_label ); ?></td>
+					<?php foreach ( array( 'received', 'completed', 'outstanding' ) as $gco_col ) : ?>
+						<td class="gco-pd-metric<?php echo isset( $errors[ $gco_prefix . $gco_col ] ) ? ' is-bad' : ''; ?>">
+							<input type="number" min="0" step="1" data-f="<?php echo esc_attr( $gco_col ); ?>" data-status="<?php echo esc_attr( $gco_col . '_status' ); ?>" data-kind="count" value="<?php echo esc_attr( $gco_get( $gco_col ) ); ?>" aria-label="<?php echo esc_attr( $force->name . ' ' . $gco_type_label . ' ' . $gco_col ); ?>"<?php echo $disabled; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+							<select data-f="<?php echo esc_attr( $gco_col . '_status' ); ?>" aria-label="<?php echo esc_attr( $gco_type_label . ' ' . $gco_col . ' status' ); ?>"<?php echo $disabled; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+								<?php foreach ( $status_options as $value => $text ) : ?>
+									<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $gco_get( $gco_col . '_status', 'not_provided' ), $value ); ?>><?php echo esc_html( $text ); ?></option>
+								<?php endforeach; ?>
+							</select>
+						</td>
+					<?php endforeach; ?>
+					<td class="gco-pd-msg">
+						<?php foreach ( $errors as $gco_key => $message ) : ?>
+							<?php if ( 0 === strpos( (string) $gco_key, $gco_prefix ) ) : ?>
+								<div class="gco-pd-error"><?php echo esc_html( $message ); ?></div>
+							<?php endif; ?>
+						<?php endforeach; ?>
+						<div class="gco-pd-live-error" hidden></div>
+					</td>
+				</tr>
+				<?php $first = false; ?>
+			<?php endforeach; ?>
 		<?php endforeach; ?>
 		</tbody>
 	</table>

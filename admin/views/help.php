@@ -62,15 +62,14 @@ $gco_url = static function ( $page, array $args = array() ) {
 	</section>
 
 	<section>
-		<h2>Extra figures: applications, backlog and service standards</h2>
-		<p>From the 2026-11 round the FOI letters also ask about application volumes, outstanding applications, backlog ages and service standards. They are in the template as the <strong>blue columns</strong> on the "FOI Data" sheet, and on the second tab of the round editor ("Applications, backlog &amp; standards"). They are all optional: leave them blank when a force did not answer, and older spreadsheets without them still upload.</p>
+		<h2>Extra FOI figures: applications, backlog, service standards, how to apply</h2>
+		<p>The FOI letters also ask about application volumes, outstanding applications, backlog ages, service standards and how applications can be made. They are optional: leave a column blank when a force did not answer, and older spreadsheets without them still upload. There are two places to enter them:</p>
 		<ul>
-			<li><strong>Applications received / completed</strong> and the period they cover (for example "12 months to 31/03/2026").</li>
-			<li><strong>Outstanding applications</strong> and the <strong>oldest outstanding</strong> one, in days.</li>
-			<li><strong>Backlog age</strong>: how many outstanding applications have waited up to 3 months, 3&ndash;6, 6&ndash;12 and over 12 months. The four cells share one status.</li>
-			<li><strong>Service standard</strong>: the force's own target in its words and in days, and the percentage of applications that met it.</li>
+			<li><strong>"FOI Data" sheet / the second tab of the round editor</strong> (one row per force): the <strong>overall</strong> applications received and completed (with the period they cover), the <strong>overall</strong> outstanding total and the oldest outstanding application, the <strong>backlog age bands</strong> (overall, not per type), the six <strong>service-standard</strong> columns (target days and % completed within target, for new grants, renewals and variations; a number means Actual), the three <strong>online</strong> Yes/No columns and the one <strong>postal</strong> Yes/No column.</li>
+			<li><strong>"FOI Application Types" sheet / the third tab ("By application type")</strong> (one row per force per type): received, completed and outstanding for each of the five types: new shotgun grants, new firearm grants, shotgun renewals, firearm renewals and firearm variations (firearm certificates only).</li>
 		</ul>
-		<p><strong>Nothing is shown to visitors until you switch it on.</strong> Under <a href="<?php echo $gco_url( GCO_PD_Admin::SLUG_SETTINGS ); ?>">Settings</a> there is one tick-box each for volumes, outstanding applications, backlog age and service standards. The figures are stored from the first round that includes them, so you can decide later. A force page then gets an "Applications, Backlog &amp; Service Standards" section, and the portal stat cards <code>outstanding</code> and <code>standard</code> become available.</p>
+		<p>If you enter both the overall totals and the five types, the upload warns when the types do not add up to the overall figure. Both are kept as the force gave them. In the round editor, leave a type row completely blank if the force did not answer for it; it is never stored as 0.</p>
+		<p><strong>Nothing is shown to visitors until you switch it on.</strong> Under <a href="<?php echo $gco_url( GCO_PD_Admin::SLUG_SETTINGS ); ?>">Settings</a> there is one tick-box each for: overall volumes, outstanding applications, backlog age, figures by application type, service standards, and how to apply (online and postal). The figures are stored from the first round that includes them, so you can decide later. The force page then gets an "Applications, Backlog &amp; Service Standards" section, and the portal stat cards <code>outstanding</code> and <code>online</code> become available.</p>
 	</section>
 
 	<section>

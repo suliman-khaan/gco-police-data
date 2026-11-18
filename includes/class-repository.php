@@ -330,6 +330,7 @@ final class GCO_PD_Repository {
 			return new WP_Error( 'gco_pd_round_published', 'Only draft rounds can be deleted. Unpublish it first.' );
 		}
 		$wpdb->delete( GCO_PD_Install::table( 'responses' ), array( 'round_id' => (int) $id ), array( '%d' ) );
+		$wpdb->delete( GCO_PD_Install::table( 'response_types' ), array( 'round_id' => (int) $id ), array( '%d' ) );
 		$wpdb->delete( GCO_PD_Install::table( 'rounds' ), array( 'id' => (int) $id ), array( '%d' ) );
 		return true;
 	}
@@ -468,6 +469,112 @@ final class GCO_PD_Repository {
 	public static function delete_response( $round_id, $force_id ) {
 		global $wpdb;
 		$wpdb->delete( GCO_PD_Install::table( 'responses' ), array( 'round_id' => (int) $round_id, 'force_id' => (int) $force_id ), array( '%d', '%d' ) );
+		self::delete_type_rows( $round_id, $force_id );
+	}
+
+	/* ------------------------------------------------ Volumes by application type */
+
+	/**
+	 * Saves one force's figures for one application type in a round. A row with nothing in it is removed,
+	 * so a blank row never becomes a row of "not provided" entries.
+	 *
+	 * @param int    $round_id Round id.
+	 * @param int    $force_id Force id.
+	 * @param string $type     One of GCO_PD_Validator::APP_TYPES keys.
+	 * @param array  $row      Raw received/completed/outstanding values and statuses.
+	 * @return true|WP_Error
+	 */
+	public static function save_type_row( $round_id, $force_id, $type, array $row ) {
+		global $wpdb;
+		if ( ! isset( GCO_PD_Validator::APP_TYPES[ $type ] ) ) {
+			return new WP_Error( 'gco_pd_bad_type', 'That application type does not exist.' );
+		}
+		if ( ! self::get_round( $round_id ) ) {
+			return new WP_Error( 'gco_pd_no_round', 'That round does not exist.' );
+		}
+		if ( ! self::get_force( $force_id ) ) {
+			return new WP_Error( 'gco_pd_no_force', 'That force does not exist.' );
+		}
+		$check = GCO_PD_Validator::validate_type_row( $row );
+		if ( ! empty( $check['errors'] ) ) {
+			return new WP_Error( 'gco_pd_invalid', 'Some figures are not valid.', $check['errors'] );
+		}
+		$data  = $check['clean'];
+		$table = GCO_PD_Install::table( 'response_types' );
+
+		$empty = true;
+		foreach ( array( 'received', 'completed', 'outstanding' ) as $column ) {
+			if ( null !== $data[ $column ] ) {
+				$empty = false;
+			}
+		}
+		$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE round_id = %d AND force_id = %d AND app_type = %s", $round_id, $force_id, $type ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( $empty ) {
+			if ( $id ) {
+				$wpdb->delete( $table, array( 'id' => $id ), array( '%d' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			}
+			return true;
+		}
+
+		$data['round_id']   = (int) $round_id;
+		$data['force_id']   = (int) $force_id;
+		$data['app_type']   = $type;
+		$data['updated_at'] = current_time( 'mysql', true );
+		if ( $id ) {
+			return false === $wpdb->update( $table, $data, array( 'id' => $id ) ) ? new WP_Error( 'gco_pd_db', 'Could not save the figures.' ) : true; // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		}
+		return false === $wpdb->insert( $table, $data ) ? new WP_Error( 'gco_pd_db', 'Could not save the figures.' ) : true; // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	}
+
+	/**
+	 * A round's type rows: force id => app type => row.
+	 *
+	 * @param int $round_id Round id.
+	 * @return array<int,array<string,object>>
+	 */
+	public static function get_type_rows( $round_id ) {
+		global $wpdb;
+		$table = GCO_PD_Install::table( 'response_types' );
+		$rows  = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE round_id = %d", $round_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$out   = array();
+		foreach ( $rows as $row ) {
+			$out[ (int) $row->force_id ][ $row->app_type ] = $row;
+		}
+		return $out;
+	}
+
+	/**
+	 * Removes type rows: one force's (round + force) or the whole round's (force 0).
+	 *
+	 * @param int $round_id Round id.
+	 * @param int $force_id Force id, or 0 for every force.
+	 */
+	public static function delete_type_rows( $round_id, $force_id = 0 ) {
+		global $wpdb;
+		$where   = array( 'round_id' => (int) $round_id );
+		$formats = array( '%d' );
+		if ( $force_id ) {
+			$where['force_id'] = (int) $force_id;
+			$formats[]         = '%d';
+		}
+		$wpdb->delete( GCO_PD_Install::table( 'response_types' ), $where, $formats ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	}
+
+	/**
+	 * Every type row of every published round (one query, for the snapshot).
+	 *
+	 * @return object[]
+	 */
+	public static function get_published_type_rows() {
+		global $wpdb;
+		$types  = GCO_PD_Install::table( 'response_types' );
+		$rounds = GCO_PD_Install::table( 'rounds' );
+		return (array) $wpdb->get_results(
+			"SELECT t.*, rd.label AS round_label
+			 FROM {$types} t INNER JOIN {$rounds} rd ON rd.id = t.round_id
+			 WHERE rd.status = 'published'
+			 ORDER BY rd.label ASC, t.force_id ASC" // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		);
 	}
 
 	/**
