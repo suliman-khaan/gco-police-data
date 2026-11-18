@@ -82,3 +82,10 @@
 .gco-pd-grid--extras td:nth-child(4) input, .gco-pd-grid--extras td:nth-last-child(4) input { width: 190px; }
 .gco-pd-grid--extras select { width: 110px; }
 .gco-pd-shared { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 8px; background: #dbe8fb; color: #0b3d91; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; vertical-align: middle; }
+
+/* Round editor: by-type grid */
+.gco-pd-grid--types { min-width: 900px; }
+.gco-pd-grid--types td:nth-child(2) { white-space: nowrap; font-weight: 500; }
+.gco-pd-grid--types input[type="number"] { width: 110px; }
+.gco-pd-typerow--first th, .gco-pd-typerow--first td { border-top: 2px solid #c3c4c7; }
+.gco-pd-grid--extras { min-width: 3400px; }

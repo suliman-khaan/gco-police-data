@@ -15,7 +15,7 @@ final class GCO_PD_Install {
 	/**
 	 * Current schema version. Bump when the table definitions below change.
 	 */
-	const DB_VERSION = '4';
+	const DB_VERSION = '5';
 
 	/**
 	 * Option holding the installed schema version.
@@ -30,7 +30,7 @@ final class GCO_PD_Install {
 	/**
 	 * Returns a full, prefixed table name.
 	 *
-	 * @param string $name One of forces, rounds, responses, npcc_quarters, npcc, force_profiles.
+	 * @param string $name One of forces, rounds, responses, npcc_quarters, npcc, force_profiles, response_types.
 	 * @return string
 	 */
 	public static function table( $name ) {
@@ -80,6 +80,7 @@ final class GCO_PD_Install {
 		$quarter = self::table( 'npcc_quarters' );
 		$npcc    = self::table( 'npcc' );
 		$profile = self::table( 'force_profiles' );
+		$types   = self::table( 'response_types' );
 		$status  = "ENUM('actual','estimate','not_provided') NOT NULL DEFAULT 'not_provided'";
 
 		$sql = array();
@@ -148,6 +149,22 @@ final class GCO_PD_Install {
   standard_days_status {$status},
   standard_met_pct DECIMAL(5,2) UNSIGNED NULL DEFAULT NULL,
   standard_met_pct_status {$status},
+  std_grant_days SMALLINT UNSIGNED NULL DEFAULT NULL,
+  std_grant_days_status {$status},
+  std_grant_pct DECIMAL(5,2) UNSIGNED NULL DEFAULT NULL,
+  std_grant_pct_status {$status},
+  std_renew_days SMALLINT UNSIGNED NULL DEFAULT NULL,
+  std_renew_days_status {$status},
+  std_renew_pct DECIMAL(5,2) UNSIGNED NULL DEFAULT NULL,
+  std_renew_pct_status {$status},
+  std_variation_days SMALLINT UNSIGNED NULL DEFAULT NULL,
+  std_variation_days_status {$status},
+  std_variation_pct DECIMAL(5,2) UNSIGNED NULL DEFAULT NULL,
+  std_variation_pct_status {$status},
+  online_grant ENUM('yes','no') NULL DEFAULT NULL,
+  online_renew ENUM('yes','no') NULL DEFAULT NULL,
+  online_variation ENUM('yes','no') NULL DEFAULT NULL,
+  post_required ENUM('yes','no') NULL DEFAULT NULL,
   notes TEXT NULL,
   pdf_id BIGINT UNSIGNED NULL DEFAULT NULL,
   updated_by BIGINT UNSIGNED NOT NULL DEFAULT 0,
@@ -188,6 +205,23 @@ final class GCO_PD_Install {
   updated_by BIGINT UNSIGNED NOT NULL DEFAULT 0,
   updated_at DATETIME NOT NULL,
   PRIMARY KEY  (force_id)
+) {$charset};";
+
+		$sql[] = "CREATE TABLE {$types} (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  round_id BIGINT UNSIGNED NOT NULL,
+  force_id BIGINT UNSIGNED NOT NULL,
+  app_type ENUM('sg_grant','fac_grant','sg_renew','fac_renew','variation') NOT NULL,
+  received INT UNSIGNED NULL DEFAULT NULL,
+  received_status {$status},
+  completed INT UNSIGNED NULL DEFAULT NULL,
+  completed_status {$status},
+  outstanding INT UNSIGNED NULL DEFAULT NULL,
+  outstanding_status {$status},
+  updated_at DATETIME NOT NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY round_force_type (round_id,force_id,app_type),
+  KEY force_id (force_id)
 ) {$charset};";
 
 		foreach ( $sql as $statement ) {

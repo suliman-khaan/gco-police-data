@@ -486,12 +486,93 @@ final class GCO_PD_Force_Page {
 			);
 		}
 
+		// Figures by application type (received / completed / outstanding), with the change since the previous round.
+		if ( GCO_PD_Settings::get( 'show_type_volumes' ) && ! empty( $extra['types'] ) ) {
+			$cell  = static function ( $metric, $bad = null ) {
+				if ( ! $metric || null === $metric['value'] ) {
+					return null;
+				}
+				return array(
+					'text'     => GCO_PD_Format::number( $metric['value'] ),
+					'estimate' => 'estimate' === $metric['status'],
+					'change'   => GCO_PD_Format::count_change( $metric['change'], $metric['direction'], $bad ),
+				);
+			};
+			$rows = array();
+			foreach ( GCO_PD_Validator::APP_TYPES as $type => $label ) {
+				$figures = $extra['types'][ $type ] ?? null;
+				if ( ! $figures ) {
+					continue;
+				}
+				$row = array(
+					'label'       => $label,
+					'received'    => $cell( $figures['received'] ),
+					'completed'   => $cell( $figures['completed'] ),
+					'outstanding' => $cell( $figures['outstanding'], 'up' ),
+				);
+				if ( $row['received'] || $row['completed'] || $row['outstanding'] ) {
+					$rows[] = $row;
+				}
+			}
+			if ( $rows ) {
+				$sections['types'] = array(
+					'title' => 'Applications by type',
+					'note'  => $extra['period'],
+					'rows'  => $rows,
+				);
+			}
+		}
+
+		// Service standards: a target and the share completed within it, for grants, renewals and variations.
 		if ( GCO_PD_Settings::get( 'show_standards' ) ) {
-			$rows = array_values( array_filter( array( $figure_row( 'Service standard', 'standard_days' ), $figure_row( 'Applications that met the standard', 'standard_met', 'down' ) ) ) );
-			if ( $rows || $extra['standard'] ) {
+			$rows = array();
+			foreach ( array(
+				'grant'     => 'New grants',
+				'renew'     => 'Renewals',
+				'variation' => 'Variations',
+			) as $key => $label ) {
+				$days = $metrics[ 'std_' . $key . '_days' ] ?? null;
+				$pct  = $metrics[ 'std_' . $key . '_pct' ] ?? null;
+				$days_text = ( $days && null !== $days['value'] ) ? GCO_PD_Format::days( $days['value'] ) : null;
+				$pct_text  = ( $pct && null !== $pct['value'] ) ? rtrim( rtrim( number_format( $pct['value'], 2 ), '0' ), '.' ) . '%' : null;
+				if ( null !== $days_text || null !== $pct_text ) {
+					$rows[] = array(
+						'label' => $label,
+						'days'  => $days_text,
+						'pct'   => $pct_text,
+					);
+				}
+			}
+			if ( $rows ) {
 				$sections['standards'] = array(
-					'title' => 'Service standard',
-					'text'  => $extra['standard'],
+					'title' => 'Service standards',
+					'rows'  => $rows,
+				);
+			}
+		}
+
+		// How applications can be made: online per category, and whether post is still required.
+		if ( GCO_PD_Settings::get( 'show_application_methods' ) && ! empty( $extra['methods'] ) ) {
+			$labels = array(
+				'online_grant'     => 'Online: new certificates',
+				'online_renew'     => 'Online: renewals',
+				'online_variation' => 'Online: variations',
+				'post_required'    => 'Postal applications still required',
+			);
+			$rows = array();
+			foreach ( $labels as $column => $label ) {
+				$value = $extra['methods'][ $column ] ?? null;
+				if ( null !== $value ) {
+					$rows[] = array(
+						'label' => $label,
+						'value' => $value,
+						'good'  => 'post_required' === $column ? 'no' : 'yes',
+					);
+				}
+			}
+			if ( $rows ) {
+				$sections['methods'] = array(
+					'title' => 'How to apply',
 					'rows'  => $rows,
 				);
 			}

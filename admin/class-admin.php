@@ -48,6 +48,7 @@ final class GCO_PD_Admin {
 		'gco_pd_save_settings'  => 'handle_save_settings',
 		'gco_pd_export_foi'     => 'handle_export_foi',
 		'gco_pd_export_npcc'    => 'handle_export_npcc',
+		'gco_pd_export_types'   => 'handle_export_types',
 	);
 
 	/**
@@ -274,7 +275,9 @@ final class GCO_PD_Admin {
 			'rows'   => array(),
 		);
 
-		self::render( 'round-edit', compact( 'round', 'forces', 'responses', 'failed' ) );
+		$types = GCO_PD_Repository::get_type_rows( $round_id );
+
+		self::render( 'round-edit', compact( 'round', 'forces', 'responses', 'types', 'failed' ) );
 	}
 
 	/**
@@ -458,9 +461,12 @@ final class GCO_PD_Admin {
 			if ( ! $force || ! is_array( $row ) ) {
 				continue;
 			}
-			$row = self::clean_grid_row( $row );
+			$row         = self::clean_grid_row( $row );
+			$types_input = $row['types'];
+			unset( $row['types'] );
+			$types_empty = self::types_are_empty( $types_input );
 
-			if ( self::is_empty_row( $row ) ) {
+			if ( self::is_empty_row( $row ) && $types_empty ) {
 				// A completely blank row means "no response from this force this round".
 				if ( isset( $existing[ $force_id ] ) ) {
 					GCO_PD_Repository::delete_response( $round_id, $force_id );
@@ -476,9 +482,16 @@ final class GCO_PD_Admin {
 			}
 
 			$check = GCO_PD_Validator::validate_response( $row );
-			if ( $check['errors'] ) {
-				$failed['errors'][ $force_id ] = $check['errors'];
-				$failed['rows'][ $force_id ]   = $row;
+			$errs  = $check['errors'];
+			foreach ( array_keys( GCO_PD_Validator::APP_TYPES ) as $type ) {
+				$type_check = GCO_PD_Validator::validate_type_row( $types_input[ $type ] );
+				foreach ( $type_check['errors'] as $column => $message ) {
+					$errs[ 'types.' . $type . '.' . $column ] = GCO_PD_Validator::APP_TYPES[ $type ] . ': ' . $message;
+				}
+			}
+			if ( $errs ) {
+				$failed['errors'][ $force_id ] = $errs;
+				$failed['rows'][ $force_id ]   = $row + array( 'types' => $types_input );
 				continue;
 			}
 			foreach ( $check['warnings'] as $message ) {
@@ -488,10 +501,17 @@ final class GCO_PD_Admin {
 			$result = GCO_PD_Repository::save_response( $round_id, $force_id, $row );
 			if ( is_wp_error( $result ) ) {
 				$failed['errors'][ $force_id ] = array( 'row' => $result->get_error_message() );
-				$failed['rows'][ $force_id ]   = $row;
-			} else {
-				++$saved;
+				$failed['rows'][ $force_id ]   = $row + array( 'types' => $types_input );
+				continue;
 			}
+			foreach ( array_keys( GCO_PD_Validator::APP_TYPES ) as $type ) {
+				$type_result = GCO_PD_Repository::save_type_row( $round_id, $force_id, $type, $types_input[ $type ] );
+				if ( is_wp_error( $type_result ) ) {
+					$failed['errors'][ $force_id ]['types.' . $type . '.received'] = $type_result->get_error_message();
+					$failed['rows'][ $force_id ]                                  = $row + array( 'types' => $types_input );
+				}
+			}
+			++$saved;
 		}
 
 		if ( $failed['errors'] ) {
@@ -526,14 +546,42 @@ final class GCO_PD_Admin {
 		foreach ( array_keys( GCO_PD_Validator::BACKLOG_BANDS ) as $column ) {
 			$clean[ $column ] = isset( $row[ $column ] ) ? sanitize_text_field( (string) $row[ $column ] ) : '';
 		}
-		foreach ( array( 'backlog_unit', 'backlog_status', 'volumes_period', 'standard_text' ) as $column ) {
+		foreach ( array_merge( array( 'backlog_unit', 'backlog_status', 'volumes_period' ), GCO_PD_Validator::YESNO_COLUMNS ) as $column ) {
 			$clean[ $column ] = isset( $row[ $column ] ) ? sanitize_text_field( (string) $row[ $column ] ) : '';
+		}
+		// Figures by application type (third tab): type => received/completed/outstanding + statuses.
+		$clean['types'] = array();
+		foreach ( array_keys( GCO_PD_Validator::APP_TYPES ) as $type ) {
+			$in = isset( $row['types'][ $type ] ) && is_array( $row['types'][ $type ] ) ? $row['types'][ $type ] : array();
+			foreach ( array( 'received', 'received_status', 'completed', 'completed_status', 'outstanding', 'outstanding_status' ) as $column ) {
+				$clean['types'][ $type ][ $column ] = isset( $in[ $column ] ) ? sanitize_text_field( (string) $in[ $column ] ) : '';
+			}
 		}
 		$clean['foi_ref']       = isset( $row['foi_ref'] ) ? sanitize_text_field( (string) $row['foi_ref'] ) : '';
 		$clean['response_date'] = isset( $row['response_date'] ) ? sanitize_text_field( (string) $row['response_date'] ) : '';
 		$clean['notes']         = isset( $row['notes'] ) ? wp_kses_post( (string) $row['notes'] ) : '';
 		$clean['pdf_id']        = isset( $row['pdf_id'] ) ? absint( $row['pdf_id'] ) : 0;
 		return $clean;
+	}
+
+	/**
+	 * True when every application-type input of a force is blank (and "not provided").
+	 *
+	 * @param array $types type => received/completed/outstanding + statuses (cleaned).
+	 * @return bool
+	 */
+	private static function types_are_empty( array $types ) {
+		foreach ( $types as $row ) {
+			foreach ( array( 'received', 'completed', 'outstanding' ) as $column ) {
+				if ( '' !== ( $row[ $column ] ?? '' ) ) {
+					return false;
+				}
+				if ( ! in_array( GCO_PD_Validator::normalize_status( $row[ $column . '_status' ] ?? '' ), array( null, GCO_PD_Validator::STATUS_NOT_PROVIDED ), true ) ) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -564,8 +612,13 @@ final class GCO_PD_Admin {
 				return false;
 			}
 		}
-		if ( ! in_array( GCO_PD_Validator::normalize_status( $row['backlog_status'] ), array( null, GCO_PD_Validator::STATUS_NOT_PROVIDED ), true ) || '' !== $row['volumes_period'] || '' !== $row['standard_text'] ) {
+		if ( ! in_array( GCO_PD_Validator::normalize_status( $row['backlog_status'] ), array( null, GCO_PD_Validator::STATUS_NOT_PROVIDED ), true ) || '' !== $row['volumes_period'] ) {
 			return false;
+		}
+		foreach ( GCO_PD_Validator::YESNO_COLUMNS as $column ) {
+			if ( '' !== $row[ $column ] ) {
+				return false;
+			}
 		}
 		return '' === $row['foi_ref'] && '' === $row['response_date'] && '' === trim( $row['notes'] ) && ! $row['pdf_id'];
 	}
@@ -704,8 +757,9 @@ final class GCO_PD_Admin {
 		GCO_PD_Importer::delete_preview( $token );
 
 		$message = sprintf(
-			'Import finished: %1$d FOI rows and %2$d NPCC rows saved as drafts.',
+			'Import finished: %1$d FOI rows, %2$d application-type rows and %3$d NPCC rows saved as drafts.',
 			$summary['foi_saved'],
+			$summary['types_saved'] ?? 0,
 			$summary['npcc_saved']
 		);
 		if ( $summary['rounds_created'] ) {
@@ -718,7 +772,7 @@ final class GCO_PD_Admin {
 			$message .= sprintf( ' %d row(s) could not be saved.', $summary['skipped'] + $summary['failed'] );
 		}
 		self::notice( $summary['failed'] || $summary['skipped'] ? 'warning' : 'success', $message . ' Nothing is live until you publish.' );
-		self::go( $summary['npcc_saved'] && ! $summary['foi_saved'] ? self::SLUG_QUARTERS : self::SLUG_ROUNDS );
+		self::go( $summary['npcc_saved'] && ! $summary['foi_saved'] && empty( $summary['types_saved'] ) ? self::SLUG_QUARTERS : self::SLUG_ROUNDS );
 	}
 
 	/**
@@ -749,6 +803,15 @@ final class GCO_PD_Admin {
 		self::guard( 'gco_pd_export_foi' );
 		$id = self::post_int( 'id' );
 		self::download( $id ? 'gco-foi-round-' . ( GCO_PD_Repository::get_round( $id )->label ?? $id ) : 'gco-foi-all-rounds', GCO_PD_Exporter::foi_csv( $id ? array( $id ) : array() ) );
+	}
+
+	/**
+	 * Streams an application-types export (one round or all).
+	 */
+	public static function handle_export_types() {
+		self::guard( 'gco_pd_export_types' );
+		$id = self::post_int( 'id' );
+		self::download( $id ? 'gco-foi-types-' . ( GCO_PD_Repository::get_round( $id )->label ?? $id ) : 'gco-foi-types-all-rounds', GCO_PD_Exporter::types_csv( $id ? array( $id ) : array() ) );
 	}
 
 	/**

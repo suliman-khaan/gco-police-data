@@ -62,7 +62,7 @@ $gco_pd_table = static function ( $title, array $rows, array $counts, $period ) 
 <h1>Import</h1>
 
 <?php if ( ! $preview ) : ?>
-	<p>Upload the <strong>GCO Police FOI Data Template</strong> (<code>.xlsx</code>) or a <code>.csv</code> with the same column headers. The file can contain the <em>FOI Data</em> sheet, the <em>NPCC Data</em> sheet, or both. You will see a preview first; <strong>nothing is saved until you confirm</strong>, and imports only ever write to <strong>drafts</strong>.</p>
+	<p>Upload the <strong>GCO Police FOI Data Template</strong> (<code>.xlsx</code>) or a <code>.csv</code> with the same column headers. The file can contain the <em>FOI Data</em> sheet, the <em>FOI Application Types</em> sheet, the <em>NPCC Data</em> sheet, or any of them. You will see a preview first; <strong>nothing is saved until you confirm</strong>, and imports only ever write to <strong>drafts</strong>.</p>
 	<form method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 		<input type="hidden" name="action" value="gco_pd_import_upload">
 		<?php wp_nonce_field( 'gco_pd_import_upload' ); ?>
@@ -84,10 +84,13 @@ $gco_pd_table = static function ( $title, array $rows, array $counts, $period ) 
 
 	<?php
 	$gco_pd_table( 'FOI responses', $preview['foi'], $preview['counts']['foi'], 'Round' );
+	$gco_pd_empty = array( 'new' => 0, 'changed' => 0, 'unchanged' => 0, 'error' => 0 );
+	$gco_pd_types = $preview['counts']['types'] ?? $gco_pd_empty;
+	$gco_pd_table( 'FOI figures by application type', $preview['types'] ?? array(), $gco_pd_types, 'Round' );
 	$gco_pd_table( 'NPCC figures', $preview['npcc'], $preview['counts']['npcc'], 'Quarter' );
 
-	$writable = $preview['counts']['foi']['new'] + $preview['counts']['foi']['changed'] + $preview['counts']['npcc']['new'] + $preview['counts']['npcc']['changed'];
-	$errored  = $preview['counts']['foi']['error'] + $preview['counts']['npcc']['error'];
+	$writable = $preview['counts']['foi']['new'] + $preview['counts']['foi']['changed'] + $gco_pd_types['new'] + $gco_pd_types['changed'] + $preview['counts']['npcc']['new'] + $preview['counts']['npcc']['changed'];
+	$errored  = $preview['counts']['foi']['error'] + $gco_pd_types['error'] + $preview['counts']['npcc']['error'];
 	?>
 
 	<?php if ( $errored ) : ?>

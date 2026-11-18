@@ -60,11 +60,16 @@ final class GCO_PD_Import_Parser {
 		'backlog_m6_12'           => 'Backlog 6 to 12 Months',
 		'backlog_m12_plus'        => 'Backlog Over 12 Months',
 		'backlog_status'          => 'Backlog Status',
-		'standard_text'           => 'Service Standard (wording)',
-		'standard_days'           => 'Service Standard (days)',
-		'standard_days_status'    => 'Service Standard Status',
-		'standard_met_pct'        => 'Met Service Standard (%)',
-		'standard_met_pct_status' => 'Met Service Standard Status',
+		'std_grant_days'          => 'New Grants - Target Processing Time (Days)',
+		'std_grant_pct'           => 'New Grants - Completed Within Target (%)',
+		'std_renew_days'          => 'Renewals - Target Processing Time (Days)',
+		'std_renew_pct'           => 'Renewals - Completed Within Target (%)',
+		'std_variation_days'      => 'Variations - Target Processing Time (Days)',
+		'std_variation_pct'       => 'Variations - Completed Within Target (%)',
+		'online_grant'            => 'Online Applications - New Grants',
+		'online_renew'            => 'Online Applications - Renewals',
+		'online_variation'        => 'Online Applications - Variations',
+		'post_required'           => 'Postal Applications Still Required',
 		'notes'              => 'Original Response / Notes',
 		'pdf_file'           => 'PDF File Name',
 	);
@@ -95,12 +100,41 @@ final class GCO_PD_Import_Parser {
 		'backlog_m6_12',
 		'backlog_m12_plus',
 		'backlog_status',
-		'standard_text',
-		'standard_days',
-		'standard_days_status',
-		'standard_met_pct',
-		'standard_met_pct_status',
+		'std_grant_days',
+		'std_grant_pct',
+		'std_renew_days',
+		'std_renew_pct',
+		'std_variation_days',
+		'std_variation_pct',
+		'online_grant',
+		'online_renew',
+		'online_variation',
+		'post_required',
 	);
+
+	/**
+	 * "FOI Application Types" sheet: one row per force per application type, field key => exact header.
+	 *
+	 * @var array<string,string>
+	 */
+	const TYPE_HEADERS = array(
+		'round'            => 'Round',
+		'force'            => 'Police Force',
+		'app_type'         => 'Application Type',
+		'received'         => 'Received',
+		'received_status'  => 'Received Status',
+		'completed'        => 'Completed',
+		'completed_status' => 'Completed Status',
+		'outstanding'      => 'Outstanding',
+		'outstanding_status' => 'Outstanding Status',
+	);
+
+	/**
+	 * Optional columns of the application types sheet (the first three identify the row).
+	 *
+	 * @var string[]
+	 */
+	const TYPE_OPTIONAL = array( 'received', 'received_status', 'completed', 'completed_status', 'outstanding', 'outstanding_status' );
 
 	/**
 	 * NPCC Data sheet: field key => exact header in the agreed template.
@@ -172,8 +206,16 @@ final class GCO_PD_Import_Parser {
 		}
 		$out['type'] = $type;
 
-		$definitions = 'foi' === $type ? self::FOI_HEADERS : self::NPCC_HEADERS;
-		$optional    = 'foi' === $type ? self::FOI_OPTIONAL : self::NPCC_OPTIONAL;
+		if ( 'foi' === $type ) {
+			$definitions = self::FOI_HEADERS;
+			$optional    = self::FOI_OPTIONAL;
+		} elseif ( 'foi_types' === $type ) {
+			$definitions = self::TYPE_HEADERS;
+			$optional    = self::TYPE_OPTIONAL;
+		} else {
+			$definitions = self::NPCC_HEADERS;
+			$optional    = self::NPCC_OPTIONAL;
+		}
 
 		$lookup = array();
 		foreach ( $definitions as $field => $label ) {
@@ -235,7 +277,7 @@ final class GCO_PD_Import_Parser {
 			return null;
 		}
 		if ( in_array( self::normalize_header( self::FOI_HEADERS['round'] ), $normalized, true ) ) {
-			return 'foi';
+			return in_array( self::normalize_header( self::TYPE_HEADERS['app_type'] ), $normalized, true ) ? 'foi_types' : 'foi';
 		}
 		if ( in_array( self::normalize_header( self::NPCC_HEADERS['quarter'] ), $normalized, true ) ) {
 			return 'npcc';
@@ -267,10 +309,15 @@ final class GCO_PD_Import_Parser {
 			$data['foi_ref']       = self::to_text( $raw['foi_ref'] );
 			$data['notes']         = self::to_text( $raw['notes'] );
 			$data['volumes_period'] = self::to_text( $raw['volumes_period'] );
-			$data['standard_text']  = self::to_text( $raw['standard_text'] );
 			$data['backlog_unit']   = self::to_text( $raw['backlog_unit'] );
 			unset( $data['round'], $data['force'], $data['pdf_file'] );
 			$pdf = self::to_text( $raw['pdf_file'] );
+			$pct = null;
+		} elseif ( 'foi_types' === $type ) {
+			$period = self::to_round_label( $raw['round'] );
+			$data['app_type'] = self::to_text( $raw['app_type'] );
+			unset( $data['round'], $data['force'] );
+			$pdf = null;
 			$pct = null;
 		} else {
 			$period = self::to_text( $raw['quarter'] );

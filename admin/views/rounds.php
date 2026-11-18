@@ -61,6 +61,13 @@ defined( 'ABSPATH' ) || exit;
 					<button class="button button-small">Download CSV</button>
 				</form>
 
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="gco_pd_export_types">
+					<input type="hidden" name="id" value="<?php echo esc_attr( (string) $round->id ); ?>">
+					<?php wp_nonce_field( 'gco_pd_export_types' ); ?>
+					<button class="button button-small" title="One row per force per application type">Download types CSV</button>
+				</form>
+
 				<?php if ( ! $is_published ) : ?>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Delete draft round <?php echo esc_js( $round->label ); ?> and all its figures? This cannot be undone.');">
 					<input type="hidden" name="action" value="gco_pd_delete_round">
@@ -82,5 +89,12 @@ defined( 'ABSPATH' ) || exit;
 	<?php wp_nonce_field( 'gco_pd_export_foi' ); ?>
 	<button class="button">Download all rounds (CSV backup)</button>
 	<span class="description">Same columns as the upload template, so it can be imported again.</span>
+</form>
+<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="gco-pd-inline-form">
+	<input type="hidden" name="action" value="gco_pd_export_types">
+	<input type="hidden" name="id" value="0">
+	<?php wp_nonce_field( 'gco_pd_export_types' ); ?>
+	<button class="button">Download all application types (CSV backup)</button>
+	<span class="description">The "FOI Application Types" sheet: one row per force per application type.</span>
 </form>
 <?php endif; ?>
