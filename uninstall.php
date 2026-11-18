@@ -17,7 +17,7 @@ if ( empty( $gco_pd_settings['delete_data'] ) ) {
 
 global $wpdb;
 
-foreach ( array( 'gco_force_profiles', 'gco_npcc', 'gco_npcc_quarters', 'gco_responses', 'gco_rounds', 'gco_forces' ) as $gco_pd_table ) {
+foreach ( array( 'gco_response_types', 'gco_force_profiles', 'gco_npcc', 'gco_npcc_quarters', 'gco_responses', 'gco_rounds', 'gco_forces' ) as $gco_pd_table ) {
 	// Table names are fixed strings plus the WordPress prefix; no user input.
 	$wpdb->query( "DROP TABLE IF EXISTS `{$wpdb->prefix}{$gco_pd_table}`" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 }

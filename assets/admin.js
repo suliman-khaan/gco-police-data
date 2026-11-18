@@ -129,6 +129,25 @@
 			}
 		} );
 
+		row.querySelectorAll( 'input[data-kind]:not([data-status]):not([data-group])' ).forEach( function ( input ) {
+			var value = input.value.trim();
+			var kind = input.getAttribute( 'data-kind' );
+			var message = '';
+			if ( value !== '' ) {
+				if ( kind === 'percent' ) {
+					if ( ! /^\d+(\.\d+)?$/.test( value ) || parseFloat( value ) > 100 ) {
+						message = 'Enter a percentage between 0 and 100.';
+					}
+				} else if ( ! /^\d+$/.test( value ) ) {
+					message = 'Whole numbers only.';
+				}
+			}
+			if ( message ) {
+				input.closest( 'td' ).classList.add( 'is-bad' );
+				messages.push( ( input.getAttribute( 'aria-label' ) || input.getAttribute( 'data-f' ) ) + ': ' + message );
+			}
+		} );
+
 		var backlog = backlogError( row );
 		if ( backlog.message ) {
 			backlog.cells.forEach( function ( cell ) {
@@ -228,9 +247,16 @@
 		var payload = {};
 		form.querySelectorAll( 'tr.gco-pd-row' ).forEach( function ( row ) {
 			var id = row.getAttribute( 'data-force' );
+			var type = row.getAttribute( 'data-type' );
 			var data = payload[ id ] || {};
+			var target = data;
+			if ( type ) {
+				data.types = data.types || {};
+				data.types[ type ] = data.types[ type ] || {};
+				target = data.types[ type ];
+			}
 			row.querySelectorAll( '[data-f]' ).forEach( function ( field ) {
-				data[ field.getAttribute( 'data-f' ) ] = field.value;
+				target[ field.getAttribute( 'data-f' ) ] = field.value;
 			} );
 			payload[ id ] = data;
 		} );

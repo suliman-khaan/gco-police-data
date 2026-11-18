@@ -108,6 +108,7 @@ final class GCO_PD_Cache {
 			'forces'    => $to_arrays( GCO_PD_Repository::get_forces() ),
 			'rounds'    => $to_arrays( GCO_PD_Repository::get_published_rounds() ),
 			'responses' => $to_arrays( GCO_PD_Repository::get_published_responses() ),
+			'types'     => $to_arrays( GCO_PD_Repository::get_published_type_rows() ),
 			'quarters'  => $to_arrays( GCO_PD_Repository::get_published_quarters() ),
 			'npcc'      => $to_arrays( GCO_PD_Repository::get_published_npcc_rows() ),
 		);

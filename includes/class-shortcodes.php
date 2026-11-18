@@ -583,14 +583,15 @@ final class GCO_PD_Shortcodes {
 						);
 					}
 					break;
-				case 'standard':
-					$extra = $snapshot['foi']['extra']['standard_met'] ?? null;
-					if ( GCO_PD_Settings::get( 'show_standards' ) ) {
-						$cards[] = array(
-							'check',
-							$extra && null !== $extra['average'] ? rtrim( rtrim( number_format( $extra['average'], 1 ), '0' ), '.' ) . '%' : null,
-							'Met their own service standard',
-							$extra && $extra['n'] ? 'Average across ' . GCO_PD_Format::forces_phrase( $extra['n_forces'], $extra['n'] ) . '. Each force sets its own standard. ' . ( $round ? 'FOI round ' . $round . '.' : '' ) : '',
+				case 'online':
+					$online = $snapshot['foi']['methods']['online_grant'] ?? null;
+					if ( GCO_PD_Settings::get( 'show_application_methods' ) ) {
+						$answered = $online ? $online['yes'] + $online['no'] : 0;
+						$cards[]  = array(
+							'document',
+							$answered ? $online['yes'] . ' of ' . $answered . ' forces' : null,
+							'Accept online applications for new certificates',
+							$answered ? ( $online['unknown'] ? $online['unknown'] . ' forces did not say. ' : '' ) . ( $round ? 'FOI round ' . $round . '.' : '' ) : '',
 						);
 					}
 					break;
