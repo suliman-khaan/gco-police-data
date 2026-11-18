@@ -208,11 +208,8 @@ final class SharedAndExtrasTest extends TestCase {
 							'outstanding_status'     => 'Actual',
 							'apps_received'          => 2500,
 							'apps_received_status'   => 'Estimate',
-							'standard_text'          => 'Decide within 12 weeks',
-							'standard_days'          => 84,
-							'standard_days_status'   => 'Actual',
-							'standard_met_pct'       => '82%',
-							'standard_met_pct_status' => 'Actual',
+							'std_grant_days'         => 56,
+							'std_grant_pct'          => '82%',
 							'oldest_days'            => 410,
 							'oldest_days_status'     => 'Actual',
 						)
@@ -226,8 +223,9 @@ final class SharedAndExtrasTest extends TestCase {
 		$this->assertSame( 'up', $extra['metrics']['outstanding']['direction'] );
 		$this->assertSame( 'estimate', $extra['metrics']['apps_received']['status'] );
 		$this->assertNull( $extra['metrics']['apps_received']['change'], 'no change without the previous figure' );
-		$this->assertSame( 82.0, $extra['metrics']['standard_met']['value'] );
-		$this->assertSame( 'Decide within 12 weeks', $extra['standard'] );
+		$this->assertSame( 82.0, $extra['metrics']['std_grant_pct']['value'] );
+		$this->assertSame( 56, $extra['metrics']['std_grant_days']['value'] );
+		$this->assertSame( 'actual', $extra['metrics']['std_grant_days']['status'], 'a service-standard number is Actual by itself' );
 		$this->assertNull( $extra['backlog'] );
 	}
 
@@ -371,11 +369,11 @@ final class SharedAndExtrasTest extends TestCase {
 		$this->assertSame( 'not_provided', $result['clean']['outstanding_status'] );
 		$this->assertSame( 'count', $result['clean']['backlog_unit'] );
 		$this->assertSame( 'not_provided', $result['clean']['backlog_status'] );
-		$this->assertNull( $result['clean']['standard_met_pct'] );
+		$this->assertNull( $result['clean']['std_grant_pct'] );
 	}
 
 	public function test_new_headers_are_optional_so_old_spreadsheets_still_import(): void {
-		foreach ( array( 'apps_received', 'outstanding', 'backlog_unit', 'backlog_m12_plus', 'standard_met_pct', 'standard_met_pct_status' ) as $field ) {
+		foreach ( array( 'apps_received', 'outstanding', 'backlog_unit', 'backlog_m12_plus', 'std_grant_pct', 'online_grant', 'post_required' ) as $field ) {
 			$this->assertContains( $field, GCO_PD_Import_Parser::FOI_OPTIONAL );
 			$this->assertArrayHasKey( $field, GCO_PD_Import_Parser::FOI_HEADERS );
 		}

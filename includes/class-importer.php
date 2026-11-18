@@ -31,7 +31,9 @@ final class GCO_PD_Importer {
 		'apps_received', 'apps_received_status', 'apps_completed', 'apps_completed_status', 'volumes_period',
 		'outstanding', 'outstanding_status', 'oldest_days', 'oldest_days_status',
 		'backlog_unit', 'backlog_m0_3', 'backlog_m3_6', 'backlog_m6_12', 'backlog_m12_plus', 'backlog_status',
-		'standard_text', 'standard_days', 'standard_days_status', 'standard_met_pct', 'standard_met_pct_status',
+		'std_grant_days', 'std_grant_pct', 'std_renew_days', 'std_renew_pct', 'std_variation_days', 'std_variation_pct',
+		'std_grant_days_status', 'std_grant_pct_status', 'std_renew_days_status', 'std_renew_pct_status', 'std_variation_days_status', 'std_variation_pct_status',
+		'online_grant', 'online_renew', 'online_variation', 'post_required',
 	);
 
 	/* ------------------------------------------------------------------ Upload */
@@ -115,10 +117,12 @@ final class GCO_PD_Importer {
 			'notices' => array(),
 			'errors'  => array(),
 			'foi'     => array(),
+			'types'   => array(),
 			'npcc'    => array(),
 		);
-		$foi_raw  = array();
-		$npcc_raw = array();
+		$foi_raw   = array();
+		$types_raw = array();
+		$npcc_raw  = array();
 
 		foreach ( $sheets as $sheet_name => $rows ) {
 			$parsed = GCO_PD_Import_Parser::parse_sheet( $rows );
@@ -133,24 +137,29 @@ final class GCO_PD_Importer {
 			}
 			if ( 'foi' === $parsed['type'] ) {
 				$foi_raw = array_merge( $foi_raw, $parsed['rows'] );
+			} elseif ( 'foi_types' === $parsed['type'] ) {
+				$types_raw = array_merge( $types_raw, $parsed['rows'] );
 			} else {
 				$npcc_raw = array_merge( $npcc_raw, $parsed['rows'] );
 			}
 		}
 
-		if ( empty( $preview['errors'] ) && empty( $foi_raw ) && empty( $npcc_raw ) ) {
-			return new WP_Error( 'gco_pd_no_data', 'No "FOI Data" or "NPCC Data" rows were found in that file. Check you are using the template and the column headers are unchanged.' );
+		if ( empty( $preview['errors'] ) && empty( $foi_raw ) && empty( $types_raw ) && empty( $npcc_raw ) ) {
+			return new WP_Error( 'gco_pd_no_data', 'No "FOI Data", "FOI Application Types" or "NPCC Data" rows were found in that file. Check you are using the template and the column headers are unchanged.' );
 		}
 
 		if ( empty( $preview['errors'] ) ) {
 			$map             = GCO_PD_Repository::get_force_name_map();
-			$preview['foi']  = self::prepare_foi( $foi_raw, $map );
-			$preview['npcc'] = self::prepare_npcc( $npcc_raw, $map );
+			$preview['foi']   = self::prepare_foi( $foi_raw, $map );
+			$preview['types'] = self::prepare_types( $types_raw, $map, $preview['foi'] );
+			$preview['foi']   = self::warn_totals_mismatch( $preview['foi'], $preview['types'] );
+			$preview['npcc']  = self::prepare_npcc( $npcc_raw, $map );
 		}
 
 		$preview['counts'] = array(
-			'foi'  => self::count_states( $preview['foi'] ),
-			'npcc' => self::count_states( $preview['npcc'] ),
+			'foi'   => self::count_states( $preview['foi'] ),
+			'types' => self::count_states( $preview['types'] ),
+			'npcc'  => self::count_states( $preview['npcc'] ),
 		);
 		return $preview;
 	}
@@ -247,6 +256,150 @@ final class GCO_PD_Importer {
 	}
 
 	/**
+	 * Classifies application-type rows (one row per force per application type).
+	 *
+	 * @param array $rows     Parser rows.
+	 * @param array $map      Force name map.
+	 * @param array $foi_rows Prepared FOI rows of the same upload (to know which forces have a main row).
+	 * @return array
+	 */
+	private static function prepare_types( array $rows, array $map, array $foi_rows ) {
+		$out      = array();
+		$rounds   = array();
+		$existing = array();
+		$seen     = array();
+
+		$foi_keys = array();
+		foreach ( $foi_rows as $foi ) {
+			if ( ! empty( $foi['force_id'] ) ) {
+				$foi_keys[ $foi['period'] . '|' . $foi['force_id'] ] = true;
+			}
+		}
+
+		foreach ( $rows as $row ) {
+			$label    = $row['period'];
+			$errors   = $row['errors'];
+			$warnings = array();
+			$force_id = GCO_PD_Repository::find_force_id( $row['force'], $map );
+			$type     = GCO_PD_Validator::normalize_app_type( $row['data']['app_type'] ?? '' );
+
+			if ( ! GCO_PD_Validator::is_valid_round_label( $label ) ) {
+				$errors['round'] = 'Round must look like 2026-11 (year, dash, month).';
+			}
+			if ( null === $force_id ) {
+				$errors['force'] = '' === $row['force']
+					? 'Police force is blank.'
+					: sprintf( '"%s" does not match any force. Use the exact name from the Forces sheet, or add an alias on the Forces screen.', $row['force'] );
+			}
+			if ( false === $type ) {
+				$errors['app_type'] = sprintf( '"%s" is not one of the five application types (New Shotgun Grant, New Firearm Grant, Shotgun Renewal, Firearm Renewal, Firearm Variation).', (string) ( $row['data']['app_type'] ?? '' ) );
+			}
+
+			if ( ! isset( $errors['round'] ) ) {
+				if ( ! array_key_exists( $label, $rounds ) ) {
+					$rounds[ $label ]   = GCO_PD_Repository::get_round_by_label( $label );
+					$existing[ $label ] = $rounds[ $label ] ? GCO_PD_Repository::get_type_rows( (int) $rounds[ $label ]->id ) : array();
+				}
+				if ( $rounds[ $label ] && 'published' === $rounds[ $label ]->status ) {
+					$errors['round'] = sprintf( 'Round %s is published. Unpublish it before importing changes, so nothing live changes by accident.', $label );
+				}
+			}
+
+			if ( ! isset( $errors['round'] ) && null !== $force_id && false !== $type ) {
+				$key = $label . '|' . $force_id . '|' . $type;
+				if ( isset( $seen[ $key ] ) ) {
+					$errors['app_type'] = sprintf( 'This force and application type already appear in round %s at row %d.', $label, $seen[ $key ] );
+				} else {
+					$seen[ $key ] = $row['row_num'];
+				}
+			}
+
+			$result   = GCO_PD_Validator::validate_type_row( $row['data'] );
+			$errors   = array_merge( $errors, $result['errors'] );
+			$warnings = $result['warnings'];
+			$clean    = $result['clean'];
+			$clean['app_type'] = false === $type ? '' : $type;
+
+			$current = ( null !== $force_id && false !== $type && isset( $existing[ $label ][ $force_id ][ $type ] ) ) ? $existing[ $label ][ $force_id ][ $type ] : null;
+
+			// A type row needs the force's main FOI row (reference, date) in the same round.
+			if ( ! $errors && null !== $force_id && ! isset( $foi_keys[ $label . '|' . $force_id ] ) ) {
+				$has_main = false;
+				if ( ! empty( $rounds[ $label ] ) ) {
+					$main_rows = GCO_PD_Repository::get_responses( (int) $rounds[ $label ]->id );
+					$has_main  = isset( $main_rows[ $force_id ] );
+				}
+				if ( ! $has_main ) {
+					$warnings['main'] = 'This force has no row on the FOI Data sheet for this round. A blank one will be created so the figures can be used; add its reference and date there when you have them.';
+				}
+			}
+
+			$state   = 'new';
+			$changed = array();
+			if ( $errors ) {
+				$state = 'error';
+			} elseif ( $current ) {
+				$changed = self::diff( $clean, $current, array( 'received', 'received_status', 'completed', 'completed_status', 'outstanding', 'outstanding_status' ) );
+				$state   = $changed ? 'changed' : 'unchanged';
+			}
+
+			$out[] = array(
+				'row_num'    => $row['row_num'],
+				'period'     => $label,
+				'force_id'   => $force_id,
+				'force_name' => ( null !== $force_id ? self::force_label( $force_id ) : $row['force'] ) . ( false !== $type ? ' - ' . GCO_PD_Validator::APP_TYPES[ $type ] : '' ),
+				'state'      => $state,
+				'errors'     => $errors,
+				'warnings'   => $warnings,
+				'changed'    => $changed,
+				'data'       => $clean,
+			);
+		}
+		$out = self::warn_shared_mismatch( $out, array( 'received', 'completed', 'outstanding' ), 'app_type' );
+		return self::warn_unmarked_twins( $out, array( 'received', 'completed', 'outstanding' ), 'app_type' );
+	}
+
+	/**
+	 * Warns on a force's main FOI row when its overall totals differ from the sum of its five application types.
+	 * Only when all five types are present for that figure. The force's own figures are kept as given.
+	 *
+	 * @param array $foi_rows  Prepared FOI rows.
+	 * @param array $type_rows Prepared type rows.
+	 * @return array FOI rows with warnings added.
+	 */
+	private static function warn_totals_mismatch( array $foi_rows, array $type_rows ) {
+		$sums = array();
+		foreach ( $type_rows as $row ) {
+			if ( 'error' === $row['state'] || empty( $row['force_id'] ) || empty( $row['data']['app_type'] ) ) {
+				continue;
+			}
+			foreach ( array( 'received', 'completed', 'outstanding' ) as $column ) {
+				if ( null !== ( $row['data'][ $column ] ?? null ) ) {
+					$sums[ $row['period'] . '|' . $row['force_id'] ][ $column ][ $row['data']['app_type'] ] = (int) $row['data'][ $column ];
+				}
+			}
+		}
+		$overall = array(
+			'received'    => array( 'apps_received', 'Applications received' ),
+			'completed'   => array( 'apps_completed', 'Applications completed' ),
+			'outstanding' => array( 'outstanding', 'Outstanding applications' ),
+		);
+		foreach ( $foi_rows as $i => $row ) {
+			if ( 'error' === $row['state'] || empty( $row['force_id'] ) ) {
+				continue;
+			}
+			foreach ( $overall as $column => $meta ) {
+				$by_type = $sums[ $row['period'] . '|' . $row['force_id'] ][ $column ] ?? array();
+				$total   = $row['data'][ $meta[0] ] ?? null;
+				if ( count( $by_type ) === count( GCO_PD_Validator::APP_TYPES ) && null !== $total && array_sum( $by_type ) !== (int) $total ) {
+					$foi_rows[ $i ]['warnings'][ 'total_' . $column ] = sprintf( '%1$s overall (%2$s) differs from the sum of the five application types (%3$s). Both are kept as the force gave them.', $meta[1], number_format( (int) $total ), number_format( array_sum( $by_type ) ) );
+				}
+			}
+		}
+		return $foi_rows;
+	}
+
+	/**
 	 * Safety net for a forgotten tick: forces that carry IDENTICAL large figures in the same round or quarter
 	 * are very probably one shared department entered twice. If they are not marked as sharing, say so on each
 	 * row, because the national totals would otherwise count that department twice. A warning only: it never
@@ -256,7 +409,7 @@ final class GCO_PD_Importer {
 	 * @param string[] $fields Count columns that identify a department's figures (not waiting times).
 	 * @return array Rows with warnings added.
 	 */
-	private static function warn_unmarked_twins( array $rows, array $fields ) {
+	private static function warn_unmarked_twins( array $rows, array $fields, $discriminator = '' ) {
 		$seen = array();
 		foreach ( $rows as $i => $row ) {
 			if ( empty( $row['force_id'] ) || 'error' === $row['state'] ) {
@@ -277,7 +430,7 @@ final class GCO_PD_Importer {
 			}
 			ksort( $values );
 			$force = GCO_PD_Repository::get_force( (int) $row['force_id'] );
-			$seen[ $row['period'] . '|' . md5( json_encode( $values ) ) ][] = array(
+			$seen[ $row['period'] . '|' . ( '' !== $discriminator ? ( $row['data'][ $discriminator ] ?? '' ) : '' ) . '|' . md5( json_encode( $values ) ) ][] = array(
 				'index' => $i,
 				'group' => $force && ! empty( $force->shared_group ) ? (string) $force->shared_group : '',
 			);
@@ -324,7 +477,7 @@ final class GCO_PD_Importer {
 	 * @param string[] $fields Figure columns that must match across the group.
 	 * @return array Rows with warnings added.
 	 */
-	private static function warn_shared_mismatch( array $rows, array $fields ) {
+	private static function warn_shared_mismatch( array $rows, array $fields, $discriminator = '' ) {
 		$groups = array();
 		foreach ( $rows as $i => $row ) {
 			if ( empty( $row['force_id'] ) || 'error' === $row['state'] ) {
@@ -332,7 +485,7 @@ final class GCO_PD_Importer {
 			}
 			$force = GCO_PD_Repository::get_force( (int) $row['force_id'] );
 			if ( $force && ! empty( $force->shared_group ) ) {
-				$groups[ $row['period'] . '|' . $force->shared_group ][] = $i;
+				$groups[ $row['period'] . '|' . $force->shared_group . '|' . ( '' !== $discriminator ? ( $row['data'][ $discriminator ] ?? '' ) : '' ) ][] = $i;
 			}
 		}
 		foreach ( $groups as $indexes ) {
@@ -584,6 +737,7 @@ final class GCO_PD_Importer {
 		$summary = array(
 			'foi_saved'       => 0,
 			'npcc_saved'      => 0,
+			'types_saved'     => 0,
 			'rounds_created'  => array(),
 			'quarters_created' => array(),
 			'skipped'         => 0,
@@ -616,6 +770,43 @@ final class GCO_PD_Importer {
 			}
 			$saved = GCO_PD_Repository::save_response( $round_ids[ $label ], (int) $row['force_id'], $row['data'] );
 			is_wp_error( $saved ) ? ++$summary['failed'] : ++$summary['foi_saved'];
+		}
+
+		$responses = array(); // round id => force id => true (main rows that exist).
+		foreach ( $preview['types'] ?? array() as $row ) {
+			if ( ! in_array( $row['state'], array( 'new', 'changed' ), true ) ) {
+				continue;
+			}
+			$label = $row['period'];
+			if ( ! isset( $round_ids[ $label ] ) ) {
+				$round = GCO_PD_Repository::get_round_by_label( $label );
+				if ( ! $round ) {
+					$id = GCO_PD_Repository::create_round( $label );
+					if ( is_wp_error( $id ) ) {
+						$round_ids[ $label ] = 0;
+					} else {
+						$round_ids[ $label ]        = (int) $id;
+						$summary['rounds_created'][] = $label;
+					}
+				} else {
+					$round_ids[ $label ] = 'published' === $round->status ? 0 : (int) $round->id;
+				}
+			}
+			if ( ! $round_ids[ $label ] ) {
+				++$summary['skipped'];
+				continue;
+			}
+			$round_id = $round_ids[ $label ];
+			if ( ! isset( $responses[ $round_id ] ) ) {
+				$responses[ $round_id ] = array_fill_keys( array_keys( GCO_PD_Repository::get_responses( $round_id ) ), true );
+			}
+			if ( empty( $responses[ $round_id ][ (int) $row['force_id'] ] ) ) {
+				// The calculator reads a force's current figures from its main row, so make sure one exists.
+				GCO_PD_Repository::save_response( $round_id, (int) $row['force_id'], array() );
+				$responses[ $round_id ][ (int) $row['force_id'] ] = true;
+			}
+			$saved = GCO_PD_Repository::save_type_row( $round_id, (int) $row['force_id'], $row['data']['app_type'], $row['data'] );
+			is_wp_error( $saved ) ? ++$summary['failed'] : ++$summary['types_saved'];
 		}
 
 		$quarter_ids = array();

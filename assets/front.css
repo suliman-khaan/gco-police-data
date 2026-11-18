@@ -349,3 +349,11 @@
 
 /* WPBakery rows holding portal blocks: breathing room under the full-width hero */
 .vc_row.gco-pd-row-hero { margin-bottom: 20px !important; }
+
+/* Force page: by-type table, service standards, how to apply */
+.gco-pd-fapps__table, .gco-pd-fapps__methods { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--gco-line); border-radius: 8px; background: #fbfdfc; }
+.gco-pd-fapps__table .gco-pd-fsub, .gco-pd-fapps__methods .gco-pd-fsub { margin-top: 0; }
+.gco-pd-fapps__table .gco-pd-note { margin: 0 0 8px; }
+.gco-pd-fapps__table .gco-pd-fchange { display: block; margin: 0; font-size: .75rem; }
+.gco-pd-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 16px; margin: 0; padding: 0; list-style: none; }
+.gco-pd-methods li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--gco-line); border-radius: 6px; background: #fff; font-size: .85rem; }

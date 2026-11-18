@@ -27,12 +27,19 @@ Everyday use is explained on **Police Data → Help** inside WordPress.
 
 ## Extra FOI figures, percentages and shared departments
 
-- **Extra figures** (from round 2026-11): applications received and completed with the period they cover, outstanding
-  applications and the oldest one, backlog age bands, and service standards (wording, days, % met). All optional and
-  stored with the same Actual / Estimate / Not provided status as the other figures. Nothing is public until switched on
-  under Settings (`show_volumes`, `show_outstanding`, `show_backlog`, `show_standards`).
+- **Extra figures** (from round 2026-11), all optional and stored with the Actual / Estimate / Not provided rule:
+  overall applications received and completed (with the period they cover), the overall outstanding total and the
+  oldest outstanding, backlog age bands (overall), service standards per category (target days and % completed within
+  target for new grants, renewals and variations; a number means Actual), online applications per category and one
+  overall "postal still required" answer (Yes/No).
+- **By application type**: a second sheet / table (`gco_response_types`) holds received, completed and outstanding for
+  each of the five types (new shotgun grant, new firearm grant, shotgun renewal, firearm renewal, firearm variation;
+  variations are firearm certificates only). Imported from the "FOI Application Types" sheet or entered on the third
+  tab of the round editor; exported as a second CSV. The import warns when the types do not add up to the overall total.
+  Nothing is public until switched on under Settings (`show_volumes`, `show_outstanding`, `show_backlog`,
+  `show_type_volumes`, `show_standards`, `show_application_methods`).
 - **Percentages**: backlog bands carry a Count or Percentage unit per row. Percentages are stored and shown as given and
-  never summed into counts. "Met standard (%)" is a percentage by nature; a bare value of 1 or less is read as a fraction.
+  never summed into counts. The "completed within target (%)" columns are percentages by nature; a bare value of 1 or less is read as a fraction.
 - **Shared departments**: a force can belong to a shared group (Police Data → Forces). Forces in a group that carry the
   same figure are counted once in national totals and averages (NPCC and FOI, per figure); different figures all count.
   The import preview warns when a group disagrees with itself, and when forces carry identical large figures but are
