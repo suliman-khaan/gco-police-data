@@ -172,6 +172,85 @@ Emma (client) raised three points; all three are built, optional and off by defa
 - [x] Tests: 123 unit tests pass; end-to-end QA on the local copy: 35 checks (import preview, commit, re-import = unchanged, export then re-import = unchanged, old template still imports, national figures with a shared department, switches off = nothing public)
 - [ ] **Client to confirm:** which forces share a department; which of the four groups to publish; whether any figure other than the backlog arrives as a percentage; the exact wording and bands of the new FOI questions (the age bands and the service-standard fields are our reading of "backlog ages" and "service standards")
 
+### M9 — FOI data by application type, per-type service standards, online/post · `feature/m9-by-type` · **PLANNED, nothing built yet** (client feedback round 2, 18 Nov 2026)
+
+**Status:** requirements confirmed by the client (Emma, via James); three small points still to confirm (§ Open questions). **Do not start coding until those are answered and the scope/time is agreed.** The agreed rule: finalise the data sheet first, then restructure the plugin once, so nothing is built twice.
+
+#### 1. What the client confirmed
+
+| # | Client answer | Consequence |
+|---|---|---|
+| 1 | Five application types: new shotgun grants, new firearm grants, shotgun renewals, firearm renewals, firearm variations | Same five as the existing waiting-time metrics (`sg_grant`, `fac_grant`, `sg_renew`, `fac_renew`, `variation`) |
+| 2 | Volumes (received, completed, outstanding) requested **per type**; outstanding also has an **overall total** for shotgun and firearm applications; **backlog age bands are overall**, not per type | The M8 backlog bands stay as built. Volumes and outstanding move to a per-type structure; overall totals stay |
+| 3 | Service standards: target days and % completed within target, **separately for new grants, renewals and variations**; % "where recorded". Client proposed six exact headers (below) | Replaces the single service-standard fields from M8 |
+| 4 | Also requested: whether each force accepts **online applications** for new grants, renewals and variations, and whether any must still be **submitted by post** | New yes/no fields |
+| 5 | "Capture everything even if it isn't published straight away" | Collect all of it; publishing stays behind per-group switches in Settings (all off by default) |
+| 6 | Shared departments: Bedfordshire + Cambridgeshire + Hertfordshire; Norfolk + Suffolk; Staffordshire + West Midlands; Surrey + Sussex | Already supported (shared groups are data). Enter these four groups on the Forces screen; nothing to build. Note West Midlands and Staffordshire share across what is otherwise a one-force-one-page layout: both keep their own page |
+
+Client's proposed service-standard headers (to be used exactly):
+`New Grants - Target Processing Time (Days)` · `New Grants - Completed Within Target (%)` · `Renewals - Target Processing Time (Days)` · `Renewals - Completed Within Target (%)` · `Variations - Target Processing Time (Days)` · `Variations - Completed Within Target (%)`
+
+#### 2. Open questions (send to the client once, together)
+
+1. **Overall outstanding total:** "an overall total for shotgun and firearm applications": one combined total, or a shotgun total **and** a firearm total? (Plan assumes both can be held; the combined total is the existing `outstanding` field.)
+2. **Post:** is "must still be submitted by post" asked **per category** (grants / renewals / variations) like the online question, or once **overall**? (Plan holds it per category; an overall answer fits the same fields.)
+3. **Variations:** confirm variations apply to **firearm certificates only** (shotgun certificates have none), so the fifth type is "firearm variation".
+
+Safe defaults if unanswered: hold both shotgun and firearm totals plus the combined total; hold post per category; variations = firearm. Changing any of these later means a column change, so confirm before the sheet is issued.
+
+#### 3. Proposed spreadsheet structure (template v3)
+
+The by-type volumes would add about 30 columns to a one-row-per-force sheet (5 types x 3 figures, each with a status), which makes the sheet unusable. So:
+
+- **Sheet "FOI Data"** (unchanged shape: one row per force per round): keeps everything from M8 except the single service-standard fields. Adds:
+  - the six service-standard columns above, each with a status column for the days figure (the % is optional "where recorded");
+  - `Outstanding Applications - Shotgun` and `- Firearm` (if confirmed), next to the existing overall outstanding;
+  - six dropdown columns (Yes / No / blank): `Online Applications Accepted - New Grants / Renewals / Variations`, `Postal Applications Still Required - New Grants / Renewals / Variations`.
+- **New sheet "FOI Application Types"** (one row per force **per application type**, so 5 rows per force per round, mirroring the table in the force's FOI reply): `Round | Police Force | Application Type (dropdown of the five) | Received | Received Status | Completed | Completed Status | Outstanding | Outstanding Status`. Dropdowns, red mismatch cells and a duplicate check on Round + Force + Type, as on the other sheets.
+- "How to fill" gets matching instructions; the "Forces" sheet reference column for shared departments is filled with the four groups above.
+- Old files (v1, v2) keep importing: every new column and the whole new sheet are optional.
+
+#### 4. Data model (DB version 5)
+
+- `gco_responses`: add `std_grant_days`, `std_grant_pct`, `std_renew_days`, `std_renew_pct`, `std_variation_days`, `std_variation_pct` (+ status for each days figure and each %); `online_grant|renew|variation` and `post_grant|renew|variation` as `ENUM('yes','no') NULL`; `outstanding_sg`, `outstanding_fac` (+ status) if confirmed. **The M8 single-standard columns (`standard_text`, `standard_days`, `standard_met_pct` and statuses) are left in place but unused**, not dropped: a live install of 0.4.x must not lose anything, and dropping can happen in a later clean-up.
+- New table `gco_response_types`: `round_id`, `force_id`, `app_type ENUM('sg_grant','fac_grant','sg_renew','fac_renew','variation')`, `received|completed|outstanding` (INT NULL) each with `_status`; unique key on (`round_id`,`force_id`,`app_type`). Deleting a draft round or a force's response cascades in the repository (no foreign keys, as elsewhere).
+- Overall `apps_received` / `apps_completed` / `outstanding` stay as the force's own overall totals (a force may give only totals).
+
+#### 5. Plugin work
+
+1. **Schema + upgrade** (DB v5), new table, uninstall list.
+2. **Validator:** per-type rows (count + status, same pairing rule); service standards (days + status, % with the M8 fraction rule); yes/no normaliser (Yes/No/blank, also "Y", "N", "true"); soft warnings when the per-type figures do not add up to the overall total (received, completed, outstanding), never blocking.
+3. **Import:** header definitions (all optional); a second sheet type `foi_types` detected by the "Application Type" header; preview section "By application type" with new/changed/unchanged/error per row; duplicate (round, force, type) rejected; commit writes types to the draft round; the M8 shared-department mismatch and identical-figures warnings extended to type rows.
+4. **Repository / cache:** save, get and delete type rows; published types gathered into the snapshot input in one query.
+5. **Export:** FOI Data CSV in the new header order; **a second CSV for application types**; both on the rounds screen (the backup must round-trip: export then import = "unchanged").
+6. **Calculator** (snapshot schema 3): per force, a `types` block (latest response) with change since the previous round; national totals per type with the shared-department rule (one count per group when the group's figures are identical); national service-standard averages per group; counts of forces accepting online / still requiring post per category ("31 of 43 accept online new-grant applications"; "not provided" never counted as "no").
+7. **Admin:** round editor gets a third tab "By application type" (one row per force and type, 215 rows, same one-JSON-field save, live validation), the six standards and the online/post dropdowns on the second tab; Forces screen unchanged. Settings: new switches `show_type_volumes` and `show_application_methods` (the existing `show_standards` covers the six standards); all off by default.
+8. **Front end (behind the switches):** force page: "Applications by type" table (received / completed / outstanding per type, change since last round); "Service standards" table (three rows: target days, % within target); "How to apply" strip (online / post badges per category). Portal stat cards: forces accepting online applications; national average % within target per group.
+9. **Help screen, README, tests, QA, version 0.5.0.**
+
+#### 6. Tests and acceptance
+
+- Unit: validator (types, standards, yes/no, sum warnings); parser (new sheet detection, old files still parse); calculator (per-type national sums with a shared group, standards averages, online counts, blanks never counted as zero or "no"); exporter round-trip.
+- End to end on the local copy, as for M8: fill template v3 with realistic rows (shared group, a force that answered some types only, post-only force, percentages, bad rows) and check preview, commit, re-import = unchanged, export then re-import = unchanged, snapshot totals with a shared department, front end with all switches off (nothing public) and on.
+- Spreadsheet: validations, red/amber rules and instruction rows checked by reading the workbook back; the plugin's own importer must read every new header.
+- The previous suites (data rules 21, security 14, extras 35, unit tests) must still pass.
+
+#### 7. Effort and order
+
+About **3 to 4 working days**: schema, validator and import/export (1.5), calculator and snapshot (0.5), round editor tab and settings (1), front end (0.5 to 1), spreadsheet v3, tests, docs and release (0.5 to 1). Order: confirm the three questions, issue template v3 for the client to check, then build; a build can start the day the sheet is signed off.
+
+#### 8. Risks
+
+| Risk | Mitigation |
+|---|---|
+| The client changes a column after the build starts | Issue template v3 first, build only from the signed-off version |
+| Overall total and sum of types disagree in a force's reply | Warning only; both kept as given; the page shows what the force said |
+| 215-row grid is slow or hits `max_input_vars` | Same single-JSON-field save as the main grid (about 1 MB cap, tested with 215 rows) |
+| A force answers by type for some types only | Missing types stay "Not provided", never 0; national per-type totals count only forces that answered, and say how many |
+| Publishing sensitive figures (backlog, outstanding) by accident | Every new group is off by default behind its own switch; the client decides after reviewing the data |
+
+**Done when:** template v3 imports cleanly through the preview, a round round-trips through export and re-import unchanged, national figures count each shared department once, nothing new is visible to visitors until its switch is on, and the previous test suites still pass.
+
 ## 4. Timeline
 
 Assumes work starts **Mon 16 Nov 2026**; the FOI data arrives ~**30 Nov**.
@@ -224,3 +303,6 @@ Testing environment: the staging copy has no `uploads/`, so images (hero photos,
 10. *(new, M6)* Police crests in the hero: confirm we may use them. Crests are protected marks, so the fallback is no crest.
 11. *(new, M6)* GP medical text: one shared text for all forces, or per-force wording? (Built to support both: each page keeps its own text, with the shared text as fallback.)
 12. *(new, M6)* **Content to check:** the Derbyshire page lists a Stafford ST18 address (looks like Staffordshire's). The "about this area" texts quote holder numbers "as of June 2026" that will go stale; the template already adds an up-to-date holders sentence, so the client may want to remove the numbers from the text.
+13. *(new, M9)* Overall outstanding total: one combined total, or a shotgun total and a firearm total?
+14. *(new, M9)* "Must still be submitted by post": per category (grants, renewals, variations) or once overall?
+15. *(new, M9)* Variations apply to firearm certificates only?
