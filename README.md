@@ -57,8 +57,11 @@ Portal blocks: `[gco_police_hero]` `[gco_police_search]` `[gco_police_stats]` `[
 `[gco_police_glance]` `[gco_police_waiting_table]` `[gco_police_guides]` `[gco_police_az]`
 `[gco_police_research]` and `[gco_police_faq_schema]` (wraps WPBakery Toggle elements, adds FAQPage schema).
 
-Force pages: `[gco_force_page]` renders the whole page (`part="hero"` and `part="body"` split it for a
-full-width hero row). Smaller blocks for one-off use: `[gco_force_waiting_times]` `[gco_force_rank]`
+Force pages: `[gco_force_page]` renders the whole page in the site's blog layout: a main column that opens with
+the hero card, and a sidebar with a sticky "FOI at a glance" box (waiting times, NPCC rank, FOI reference and date)
+and "On this page" links. Below 992px it becomes one column with the FOI box straight after the hero. Pages
+migrated before 0.6.0 used two rows (`part="hero"` / `part="body"`); they still work (`hero` now renders nothing)
+and `migrate --apply` moves them to the single row. Smaller blocks for one-off use: `[gco_force_waiting_times]` `[gco_force_rank]`
 `[gco_force_trend]` `[gco_force_context]` `[gco_force_updated]`. `force="auto"` uses the force linked to the
 current page; `force="slug"` picks one.
 

@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 ?>
-<section class="gco-pd-card gco-pd-fcard">
+<section class="gco-pd-card gco-pd-fcard gco-pd-anchor" id="gco-area">
 	<h2 class="gco-pd-card__title gco-pd-fcard__title"><?php echo esc_html( $title ); ?></h2>
 	<div class="gco-pd-prose">
 		<?php echo wp_kses_post( $text ); ?>

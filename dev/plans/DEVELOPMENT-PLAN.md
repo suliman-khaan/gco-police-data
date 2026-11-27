@@ -224,6 +224,18 @@ About 3 to 4 working days. Main risks: the client changing a column after the bu
 - [x] Round editor: third tab (215 rows, one JSON field, about 79 KB), second tab updated; Settings: six publish switches, all off; force page: by-type table, standards table, how-to-apply strip; portal cards `outstanding` and `online`
 - [x] Tests: 138 unit tests; end-to-end QA on the local copy: 43 checks (including the real grid save handler with a by-type payload), plus the earlier suites (data rules 21, security 14, shared-department warning 5) all passing
 
+### M10 — Force page in the blog layout · `feature/blog-layout` · **BUILT** (client request 19–20 Nov 2026)
+
+Client asked for the force pages to follow the new blog template (reference: /where-to-install-a-gun-cabinet) with the FOI data in a sticky sidebar. Content-from-spreadsheet was discussed and **left for later** (separate piece of work, to be scoped and priced if the client wants it).
+
+- Main column opens with a hero card (breadcrumb, tag, "Updated" date, title, intro, photo/crest), then area, waiting times, applications, reports, GP medical, contact, national overview, inspection, FAQs. Guides and sources run full width underneath.
+- Sidebar: sticky **FOI at a glance** (five waiting times, shotgun-grant change, NPCC rank / % within 4 months / holders, FOI reference and date, two buttons) and **On this page** links with the active section highlighted. Below 992px: one column, FOI box straight after the hero.
+- `[gco_force_page]` is now one row; `part="hero"` renders nothing and `part="body"` renders the whole page, so pages migrated before 0.6.0 keep working. `migrate --apply` moves old two-row pages to the single row (profile fields are only filled when empty).
+- Smooth scrolling on force pages (not for reduced-motion users).
+- Fixed in the round editor: grid header no longer covers row 1 (grid scrolls in its own box, pinned below the save bar); stored decimals show as whole numbers (`616.00` -> `616`) so saved backlog counts no longer block the next save.
+- Portal layout is applied with `wp gco-pd portal apply`; no WP-CLI means no way to apply it from the admin yet (possible follow-up: an admin button).
+- Not checked: hero photo / crest (staging has no media), live PageSpeed.
+
 ## 4. Timeline
 
 Assumes work starts **Mon 16 Nov 2026**; the FOI data arrives ~**30 Nov**.

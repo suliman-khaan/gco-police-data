@@ -186,7 +186,12 @@ $gco_extra_cell = static function ( $key, $force, array $ctx ) {
 					return (string) ( $typed[ $field ] ?? $default );
 				}
 				if ( $existing && isset( $existing->$field ) && null !== $existing->$field ) {
-					return (string) $existing->$field;
+					$stored = (string) $existing->$field;
+					// DECIMAL columns come back as "616.00": show "616" (and "55.50" as "55.5") so whole counts stay whole.
+					if ( ! in_array( $field, array( 'foi_ref', 'volumes_period', 'notes' ), true ) && preg_match( '/^\d+\.\d+$/', $stored ) ) {
+						$stored = rtrim( rtrim( $stored, '0' ), '.' );
+					}
+					return $stored;
 				}
 				return $default;
 			};
@@ -272,7 +277,12 @@ $gco_extra_cell = static function ( $key, $force, array $ctx ) {
 					return (string) ( $typed[ $field ] ?? $default );
 				}
 				if ( $existing && isset( $existing->$field ) && null !== $existing->$field ) {
-					return (string) $existing->$field;
+					$stored = (string) $existing->$field;
+					// DECIMAL columns come back as "616.00": show "616" (and "55.50" as "55.5") so whole counts stay whole.
+					if ( ! in_array( $field, array( 'foi_ref', 'volumes_period', 'notes' ), true ) && preg_match( '/^\d+\.\d+$/', $stored ) ) {
+						$stored = rtrim( rtrim( $stored, '0' ), '.' );
+					}
+					return $stored;
 				}
 				return $default;
 			};

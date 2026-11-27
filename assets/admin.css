@@ -16,7 +16,9 @@
 .gco-pd-scroll { overflow-x: auto; max-width: 100%; border: 1px solid #c3c4c7; background: #fff; }
 .gco-pd-grid { border: 0; min-width: 1900px; }
 .gco-pd-grid th, .gco-pd-grid td { padding: 6px 8px; vertical-align: top; }
-.gco-pd-grid thead th { position: sticky; top: 32px; background: #f6f7f7; z-index: 2; white-space: nowrap; }
+/* The grid scrolls inside its own box (both ways), so the header sticks to the top of that box, not the page. */
+.gco-pd-scroll:has(> .gco-pd-grid) { overflow: auto; max-height: calc(100vh - 220px); min-height: 320px; position: sticky; top: 96px; z-index: 1; }
+.gco-pd-grid thead th { position: sticky; top: 0; background: #f6f7f7; z-index: 2; white-space: nowrap; box-shadow: inset 0 -1px 0 #dcdcde; }
 .gco-pd-grid .gco-pd-sticky { position: sticky; left: 0; background: #f6f7f7; z-index: 1; min-width: 190px; border-right: 1px solid #dcdcde; }
 .gco-pd-grid thead .gco-pd-sticky { z-index: 3; }
 .gco-pd-grid tbody tr:nth-child(odd) td { background: #fcfcfc; }

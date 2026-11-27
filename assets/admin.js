@@ -55,7 +55,7 @@
 		var value = input.value.trim();
 		var status = select.value;
 		if ( value !== '' ) {
-			if ( wholeOnly( input, row ) && ! /^\d+$/.test( value ) ) {
+			if ( wholeOnly( input, row ) && ! /^\d+(\.0+)?$/.test( value ) ) {
 				return 'Whole numbers only.';
 			}
 			if ( ! wholeOnly( input, row ) && ! /^\d+(\.\d+)?$/.test( value ) ) {
@@ -91,7 +91,7 @@
 			if ( value === '' ) {
 				return;
 			}
-			if ( wholeOnly( band, row ) && ! /^\d+$/.test( value ) ) {
+			if ( wholeOnly( band, row ) && ! /^\d+(\.0+)?$/.test( value ) ) {
 				message = 'Backlog counts must be whole numbers. If the force gave percentages, set the unit to Percentage.';
 				cells.push( band );
 			} else if ( ! wholeOnly( band, row ) && ( ! /^\d+(\.\d+)?$/.test( value ) || parseFloat( value ) > 100 ) ) {
@@ -138,7 +138,7 @@
 					if ( ! /^\d+(\.\d+)?$/.test( value ) || parseFloat( value ) > 100 ) {
 						message = 'Enter a percentage between 0 and 100.';
 					}
-				} else if ( ! /^\d+$/.test( value ) ) {
+				} else if ( ! /^\d+(\.0+)?$/.test( value ) ) {
 					message = 'Whole numbers only.';
 				}
 			}
