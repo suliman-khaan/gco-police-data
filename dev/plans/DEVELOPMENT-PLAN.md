@@ -252,6 +252,15 @@ Police Data → Setup does what the WP-CLI commands did, with buttons, and both 
 - No empty breadcrumb bar or extra top padding above the portal and force pages (same as the blog template).
 - Live showed a fatal error (`GCO_PD_Admin` not found): the `admin/` folder had not been uploaded. The plugin now checks its core files (`required-files.php`) before loading and shows a plain notice naming what is missing, instead of a fatal error that locks wp-admin; activation refuses with the same message. A unit test keeps the list in step with the real class files.
 
+### 0.7.2 — content that was lost when moving old force pages (client comparison of City of London, 27 Nov 2026)
+
+Comparing the old City of London page with the migrated one found written content that the template had no place for:
+- Per-force fields: **Waiting times introduction** (the paragraphs above the table) and **National comparison text** (the paragraphs above the national figures), read from old pages by the extractor and shown on the page.
+- Shared defaults (all forces): note under the waiting times (the "midpoint of a range" sentence), share prompt ("Know someone applying or renewing ... with {force}?") with the AddToAny share buttons (plain links if AddToAny is not active), and the "Have feedback you wish to share?" invitation under the applicant reports.
+- The tagline now shows above the hero intro (it was hidden whenever an intro existed).
+- Setup: **Refresh from original** (one force or all) re-reads a moved page's stored original and fills only empty profile fields, so pages moved before 0.7.2 get the new fields without losing anything typed.
+- Still intentionally not carried over: the waiting-times table, FOI line and national figure cards (generated from the published data; nothing shows until a round is imported and published), and the guide cards (set the shared guide IDs).
+
 ## 4. Timeline
 
 Assumes work starts **Mon 16 Nov 2026**; the FOI data arrives ~**30 Nov**.

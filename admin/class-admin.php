@@ -1000,11 +1000,13 @@ final class GCO_PD_Admin {
 			@set_time_limit( 300 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,Squiz.PHP.DiscouragedFunctions.Discouraged
 		}
 		$scope        = self::post_text( 'scope' );
+		$refresh      = 'refresh' === self::post_text( 'mode' );
 		$shared_saved = false !== get_option( GCO_PD_Profile::SHARED_OPTION, false );
 		$done         = 0;
 		$errors       = array();
 		foreach ( GCO_PD_Setup::force_rows() as $row ) {
-			$match = 'all' === $scope ? $row['needs'] : ( (int) $scope === (int) $row['force']->id );
+			$eligible = $refresh ? $row['refreshable'] : $row['needs'];
+			$match    = 'all' === $scope ? $eligible : ( (int) $scope === (int) $row['force']->id && ( $refresh ? $row['refreshable'] : true ) );
 			if ( ! $match || ! $row['page_id'] ) {
 				continue;
 			}
@@ -1016,7 +1018,9 @@ final class GCO_PD_Admin {
 			}
 		}
 		do_action( 'gco_pd_data_changed' );
-		if ( $done ) {
+		if ( $done && $refresh ) {
+			self::notice( 'success', sprintf( '%d force page(s) refreshed from their original content. Only empty fields were filled; anything you have typed is untouched.', $done ) );
+		} elseif ( $done ) {
 			self::notice( 'success', sprintf( '%d force page(s) moved to the template. Each one keeps its old content; Restore puts it back.', $done ) );
 		}
 		foreach ( $errors as $error ) {

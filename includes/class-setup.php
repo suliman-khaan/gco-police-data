@@ -173,7 +173,8 @@ final class GCO_PD_Setup {
 				'blank'      => $post && '' === trim( $content ),
 				'old_layout' => $post && self::OLD_TEMPLATE_CONTENT === trim( $content ),
 				'needs'      => $post && ( ( 'old' === $state && '' !== trim( $content ) ) || self::OLD_TEMPLATE_CONTENT === trim( $content ) ),
-				'backup'  => $post && metadata_exists( 'post', $page_id, self::FORCE_BACKUP_META ),
+				'backup'     => $post && metadata_exists( 'post', $page_id, self::FORCE_BACKUP_META ),
+				'refreshable' => $post && 'template' === $state && metadata_exists( 'post', $page_id, self::FORCE_BACKUP_META ),
 				'filled'  => GCO_PD_Profile::completeness( $profiles[ (int) $force->id ] ?? GCO_PD_Profile::empty_profile() ),
 			);
 		}

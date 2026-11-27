@@ -72,7 +72,7 @@ All of them are WPBakery elements under "GCO Police Data". Templates can be over
 
 Police Data → Setup does what the WP-CLI commands below do, with buttons: put the portal layout on a page of your choice
 (or create a draft page with it), preview and move force pages to the template (one at a time or all), create draft pages
-for forces without one, and restore any of it. Every change keeps the old content. The WP-CLI commands use the same code.
+for forces without one, refresh moved pages from their stored originals (fills only empty fields), and restore any of it. Every change keeps the old content. The WP-CLI commands use the same code.
 
 ## WP-CLI
 

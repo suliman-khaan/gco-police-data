@@ -45,6 +45,9 @@ $gco_pd_media = '' !== $image || '' !== $crest;
 			<?php endif; ?>
 		</div>
 		<h1 class="gco-pd-fhero__title"><?php echo esc_html( $title ); ?></h1>
+		<?php if ( '' !== $intro && '' !== $tagline ) : ?>
+			<p class="gco-pd-fhero__tagline"><?php echo esc_html( $tagline ); ?></p>
+		<?php endif; ?>
 		<?php if ( '' !== $intro || '' !== $tagline ) : ?>
 			<p class="gco-pd-fhero__intro"><?php echo esc_html( '' !== $intro ? $intro : $tagline ); ?></p>
 		<?php endif; ?>

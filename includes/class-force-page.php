@@ -100,11 +100,11 @@ final class GCO_PD_Force_Page {
 			'contact'  => self::contact( $profile ),
 			'gp'       => self::gp( $profile, $shared, $name ),
 			'area'     => self::area( $force, $profile, $area ),
-			'reports'  => self::reports( $profile, $name ),
+			'reports'  => self::reports( $profile, $name, $shared ),
 			'shared'   => self::shared( $force ),
-			'waits'    => self::waits( $force, $snapshot ),
+			'waits'    => self::waits( $force, $snapshot, $profile, $shared, $name ),
 			'apps'     => self::applications( $force ),
-			'overview' => self::overview( $force, $name ),
+			'overview' => self::overview( $force, $name, $profile ),
 			'inspect'  => self::inspection( $shared, $name ),
 			'faqs'     => self::faqs( $profile, $name ),
 			'guides'   => self::guides( $profile, $shared ),
@@ -288,7 +288,7 @@ final class GCO_PD_Force_Page {
 	 * @param string $name    Force name.
 	 * @return array|null
 	 */
-	private static function reports( array $profile, $name ) {
+	private static function reports( array $profile, $name, array $shared = array() ) {
 		if ( ! $profile['quotes'] && '' === $profile['reports_intro'] ) {
 			return null;
 		}
@@ -303,6 +303,7 @@ final class GCO_PD_Force_Page {
 			'subtitle' => sprintf( 'Real experiences from people who have applied to %s for a shotgun or firearm certificate.', $name ),
 			'intro'    => $profile['reports_intro'],
 			'quotes'   => $quotes,
+			'feedback' => GCO_PD_Profile::fill( (string) ( $shared['feedback_text'] ?? '' ), $name ),
 		);
 	}
 
@@ -313,7 +314,7 @@ final class GCO_PD_Force_Page {
 	 * @param array $snapshot Snapshot.
 	 * @return array
 	 */
-	private static function waits( array $force, array $snapshot ) {
+	private static function waits( array $force, array $snapshot, array $profile = array(), array $shared = array(), $name = '' ) {
 		$foi = $force['foi'] ?? null;
 		if ( ! $foi ) {
 			return array( 'empty' => true );
@@ -378,8 +379,20 @@ final class GCO_PD_Force_Page {
 			}
 		}
 
+		$share = null;
+		if ( '' !== trim( (string) ( $shared['share_title'] ?? '' ) ) || '' !== trim( (string) ( $shared['share_text'] ?? '' ) ) ) {
+			$share = array(
+				'title'   => GCO_PD_Profile::fill( (string) $shared['share_title'], $name ),
+				'text'    => GCO_PD_Profile::fill( (string) $shared['share_text'], $name ),
+				'buttons' => self::share_buttons(),
+			);
+		}
+
 		return array(
 			'empty'   => false,
+			'text'    => '' !== trim( wp_strip_all_tags( (string) ( $profile['waits_text'] ?? '' ) ) ) ? wpautop( $profile['waits_text'] ) : '',
+			'note'    => GCO_PD_Profile::fill( (string) ( $shared['waits_note'] ?? '' ), $name ),
+			'share'   => $share,
 			'ref'     => $foi['foi_ref'] ?? null,
 			'date'    => GCO_PD_Format::date( $foi['response_date'] ?? '' ),
 			'round'   => GCO_PD_Format::round_label( $foi['round'] ),
@@ -607,28 +620,61 @@ final class GCO_PD_Force_Page {
 	}
 
 	/**
-	 * National overview stat cards from the latest NPCC quarter.
+	 * Share buttons: the AddToAny plugin's buttons when it is active (the old pages used them), else plain links.
+	 * Returns markup that is already escaped.
+	 *
+	 * @return string
+	 */
+	private static function share_buttons() {
+		if ( shortcode_exists( 'addtoany' ) ) {
+			return do_shortcode( '[addtoany]' );
+		}
+		$url   = rawurlencode( (string) get_permalink() );
+		$title = rawurlencode( html_entity_decode( wp_strip_all_tags( get_the_title() ), ENT_QUOTES, 'UTF-8' ) );
+		$links = array(
+			'WhatsApp' => 'https://wa.me/?text=' . $title . '%20' . $url,
+			'Facebook' => 'https://www.facebook.com/sharer/sharer.php?u=' . $url,
+			'X'        => 'https://twitter.com/intent/tweet?text=' . $title . '&url=' . $url,
+			'Email'    => 'mailto:?subject=' . $title . '&body=' . $url,
+		);
+		$html  = '';
+		foreach ( $links as $label => $href ) {
+			$html .= '<a class="gco-pd-share__link" href="' . esc_url( $href ) . '" target="_blank" rel="noopener nofollow">' . esc_html( $label ) . '</a>';
+		}
+		return $html;
+	}
+
+	/**
+	 * National overview: the written comparison text and the stat cards from the latest NPCC quarter.
 	 *
 	 * @param array  $force Snapshot force.
 	 * @param string $name  Force name.
 	 * @return array|null
 	 */
-	private static function overview( array $force, $name ) {
+	private static function overview( array $force, $name, array $profile = array() ) {
 		$npcc = $force['npcc'] ?? null;
-		if ( ! $npcc ) {
+		$text = '' !== trim( wp_strip_all_tags( (string) ( $profile['national_text'] ?? '' ) ) ) ? wpautop( $profile['national_text'] ) : '';
+		if ( ! $npcc && '' === $text ) {
 			return null;
 		}
-		return array(
+		$data = array(
 			'subtitle' => sprintf( 'How %s compares with the national picture for firearms licensing.', $name ),
-			'cards'    => array(
+			'text'     => $text,
+			'cards'    => array(),
+			'pct'      => null,
+			'source'   => '',
+		);
+		if ( $npcc ) {
+			$data['cards']  = array(
 				array( 'trophy', $npcc['rank'] ? GCO_PD_Format::ordinal( $npcc['rank'] ) . ' / ' . $npcc['ranked_of'] : null, 'National Performance Ranking (NPCC)' ),
 				array( 'users', GCO_PD_Format::number( $npcc['holders'] ), 'Firearm and Shotgun Certificate Holders' ),
 				array( 'document', GCO_PD_Format::number( $npcc['received'] ), 'Applications Received (Last 12 Months)' ),
 				array( 'check', GCO_PD_Format::number( $npcc['completed'] ), 'Applications Completed (Last 12 Months)' ),
-			),
-			'pct'      => GCO_PD_Format::percent( $npcc['pct'] ),
-			'source'   => 'NPCC Firearms Licensing Performance Report, ' . $npcc['quarter'] . '. Ranking by share of applications completed within 4 months.',
-		);
+			);
+			$data['pct']    = GCO_PD_Format::percent( $npcc['pct'] );
+			$data['source'] = 'NPCC Firearms Licensing Performance Report, ' . $npcc['quarter'] . '. Ranking by share of applications completed within 4 months.';
+		}
+		return $data;
 	}
 
 	/**

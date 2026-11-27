@@ -440,3 +440,16 @@ html:has(.gco-pd-hero) { overflow-x: hidden; }
 body:has(.gco-pd-hero, .gco-pd-fpage) .page-top { display: none; }
 body:has(.gco-pd-hero) #main .main-content { padding-top: 0; }
 body:has(.gco-pd-fpage) #main .main-content { padding-top: 10px; }
+
+/* Force page: tagline, waiting-times text and note, share row, feedback invitation, national text */
+.gco-pd-fhero__tagline { margin: -8px 0 12px; color: #fff; font-size: 1.05rem; font-weight: 600; line-height: 1.4; }
+.gco-pd-fwaits__text, .gco-pd-fnational { margin: 0 0 14px; }
+.gco-pd-fwaits__note { margin-top: 12px; }
+.gco-pd-share { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; margin-top: 16px; padding: 14px 16px; border: 1px solid var(--gco-line); border-radius: 8px; background: #fbfdfc; }
+.gco-pd-share__text { display: flex; flex-direction: column; gap: 2px; font-size: .9rem; }
+.gco-pd-share__text span { color: var(--gco-mute); }
+.gco-pd-share__buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.gco-pd-share__link { padding: .4em .9em; border: 1.5px solid var(--gco-brand); border-radius: 6px; color: var(--gco-brand) !important; font-size: .82rem; font-weight: 600; text-decoration: none; }
+.gco-pd-share__link:hover { background: var(--gco-brand); color: #fff !important; }
+.gco-pd-share .a2a_kit { line-height: 1; }
+.gco-pd-ffeedback { margin-top: 14px; }

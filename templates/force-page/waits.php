@@ -7,6 +7,9 @@
  * @var string|null $ref     FOI reference.
  * @var string      $date    Response date, e.g. "12 June 2026".
  * @var string      $round   Round shown, e.g. "June 2026".
+ * @var string      $text    Introduction above the table (limited HTML) or ''.
+ * @var string      $note    Note under the table (limited HTML) or ''.
+ * @var array|null  $share   title, text, buttons (escaped markup) or null.
  * @var bool        $stale   Force missed the latest round.
  * @var string      $latest  Latest round overall.
  * @var array[]     $rows    label, figure, change.
@@ -48,6 +51,9 @@ defined( 'ABSPATH' ) || exit;
 		<?php if ( $stale && $latest ) : ?>
 			<p class="gco-pd-fnote"><?php echo esc_html( sprintf( '%1$s has not yet answered our %2$s request, so these are its %3$s figures.', $name, $latest, $round ) ); ?></p>
 		<?php endif; ?>
+		<?php if ( '' !== $text ) : ?>
+			<div class="gco-pd-prose gco-pd-fwaits__text"><?php echo wp_kses_post( $text ); ?></div>
+		<?php endif; ?>
 		<div class="gco-pd-scroll">
 			<table class="gco-pd-table gco-pd-table--fwaits">
 				<caption class="gco-pd-sr"><?php echo esc_html( $name . ' waiting times, ' . $round ); ?></caption>
@@ -74,6 +80,10 @@ defined( 'ABSPATH' ) || exit;
 				</tbody>
 			</table>
 		</div>
+
+		<?php if ( '' !== trim( wp_strip_all_tags( (string) $note ) ) ) : ?>
+			<p class="gco-pd-fnote gco-pd-fwaits__note"><?php echo wp_kses_post( $note ); ?></p>
+		<?php endif; ?>
 
 		<?php if ( $chart ) : ?>
 			<div class="gco-pd-fchart">
@@ -123,6 +133,16 @@ defined( 'ABSPATH' ) || exit;
 					</table>
 				</div>
 			</details>
+		<?php endif; ?>
+
+		<?php if ( $share ) : ?>
+			<div class="gco-pd-share">
+				<div class="gco-pd-share__text">
+					<?php if ( '' !== trim( (string) $share['title'] ) ) : ?><strong><?php echo esc_html( $share['title'] ); ?></strong><?php endif; ?>
+					<?php if ( '' !== trim( (string) $share['text'] ) ) : ?><span><?php echo esc_html( $share['text'] ); ?></span><?php endif; ?>
+				</div>
+				<div class="gco-pd-share__buttons"><?php echo $share['buttons']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- AddToAny / escaped links. ?></div>
+			</div>
 		<?php endif; ?>
 
 		<?php if ( $pdf ) : ?>
