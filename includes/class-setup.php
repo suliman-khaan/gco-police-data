@@ -230,6 +230,13 @@ final class GCO_PD_Setup {
 		}
 
 		$result  = GCO_PD_Page_Extractor::extract( $source );
+		// A per-force text that says the same as the shared default is not stored: the shared one is used.
+		$shared_now = GCO_PD_Profile::shared();
+		foreach ( array( 'inspection_text', 'waits_note' ) as $override ) {
+			if ( isset( $result['profile'][ $override ] ) && self::same_text( self::generalise( $result['profile'][ $override ], $force->name, get_the_title( $page_id ) ), (string) ( $shared_now[ $override ] ?? '' ) ) ) {
+				unset( $result['profile'][ $override ] );
+			}
+		}
 		$current = GCO_PD_Profile::get( (int) $force->id );
 		$merged  = $current;
 		foreach ( $result['profile'] as $key => $value ) {
@@ -377,6 +384,20 @@ final class GCO_PD_Setup {
 	}
 
 	/* ------------------------------------------------------------------------- Internals */
+
+	/**
+	 * Whether two pieces of text say the same thing (ignoring tags, case, punctuation and spacing).
+	 *
+	 * @param string $a Text.
+	 * @param string $b Text.
+	 * @return bool
+	 */
+	private static function same_text( $a, $b ) {
+		$clean = static function ( $text ) {
+			return trim( preg_replace( '/[^a-z0-9]+/', ' ', strtolower( html_entity_decode( wp_strip_all_tags( (string) $text ), ENT_QUOTES, 'UTF-8' ) ) ) );
+		};
+		return '' !== $clean( $a ) && $clean( $a ) === $clean( $b );
+	}
 
 	/**
 	 * Writes the template shortcode as the page content and drops stale WPBakery row styles.

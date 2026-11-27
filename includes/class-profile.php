@@ -61,7 +61,9 @@ final class GCO_PD_Profile {
 			'gp_note'          => array( 'textarea', 'GP note', 'Optional, e.g. "Know a provider we have missed?".' ),
 			// Waiting times and national picture.
 			'waits_text'       => array( 'html', 'Waiting times introduction', 'Shown above the waiting-times table, e.g. how long applicants usually wait and what the figures mean.' ),
+			'waits_note'       => array( 'html', 'Note under the waiting times (this force)', 'Replaces the shared note on this force\'s page, e.g. how the force reported its times. Leave empty to use the shared note.' ),
 			'national_text'    => array( 'html', 'National comparison text', 'Shown above the national figures: how this force compares with the national picture.' ),
+			'inspection_text' => array( 'html', 'Security inspection text (this force)', 'Replaces the shared security inspection text on this force\'s page. Leave empty to use the shared text.' ),
 			// Applicant reports.
 			'reports_intro'    => array( 'textarea', 'Applicant reports intro', 'A short summary of what applicants report.' ),
 			'quotes'           => array(
@@ -102,10 +104,10 @@ final class GCO_PD_Profile {
 			'Contact'           => array( 'contact_unit', 'contact_address', 'contact_phone', 'contact_email', 'contact_hours', 'contact_url', 'contact_note' ),
 			'Area & applicants' => array( 'area_name', 'area_text', 'applicant_text', 'applicant_points' ),
 			'GP medical'        => array( 'gp_text', 'gp_providers', 'gp_note' ),
-			'Waiting times & national' => array( 'waits_text', 'national_text' ),
+			'Waiting times & national' => array( 'waits_text', 'waits_note', 'national_text' ),
 			'Applicant reports' => array( 'reports_intro', 'quotes' ),
 			'FAQs'              => array( 'faqs' ),
-			'Review & guides'   => array( 'reviewed', 'next_review', 'guide_ids' ),
+			'Review & guides'   => array( 'inspection_text', 'reviewed', 'next_review', 'guide_ids' ),
 		);
 	}
 

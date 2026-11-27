@@ -105,7 +105,7 @@ final class GCO_PD_Force_Page {
 			'waits'    => self::waits( $force, $snapshot, $profile, $shared, $name ),
 			'apps'     => self::applications( $force ),
 			'overview' => self::overview( $force, $name, $profile ),
-			'inspect'  => self::inspection( $shared, $name ),
+			'inspect'  => self::inspection( $shared, $name, $profile ),
 			'faqs'     => self::faqs( $profile, $name ),
 			'guides'   => self::guides( $profile, $shared ),
 			'review'   => self::review( $force, $profile, $shared, $name ),
@@ -391,7 +391,7 @@ final class GCO_PD_Force_Page {
 		return array(
 			'empty'   => false,
 			'text'    => '' !== trim( wp_strip_all_tags( (string) ( $profile['waits_text'] ?? '' ) ) ) ? wpautop( $profile['waits_text'] ) : '',
-			'note'    => GCO_PD_Profile::fill( (string) ( $shared['waits_note'] ?? '' ), $name ),
+			'note'    => GCO_PD_Profile::fill( '' !== trim( wp_strip_all_tags( (string) ( $profile['waits_note'] ?? '' ) ) ) ? (string) $profile['waits_note'] : (string) ( $shared['waits_note'] ?? '' ), $name ),
 			'share'   => $share,
 			'ref'     => $foi['foi_ref'] ?? null,
 			'date'    => GCO_PD_Format::date( $foi['response_date'] ?? '' ),
@@ -684,8 +684,9 @@ final class GCO_PD_Force_Page {
 	 * @param string $name   Force name.
 	 * @return array|null
 	 */
-	private static function inspection( array $shared, $name ) {
-		if ( '' === $shared['inspection_title'] && '' === $shared['inspection_text'] ) {
+	private static function inspection( array $shared, $name, array $profile = array() ) {
+		$text = '' !== trim( wp_strip_all_tags( (string) ( $profile['inspection_text'] ?? '' ) ) ) ? (string) $profile['inspection_text'] : (string) $shared['inspection_text'];
+		if ( '' === $shared['inspection_title'] && '' === $text ) {
 			return null;
 		}
 		$products = '';
@@ -694,7 +695,7 @@ final class GCO_PD_Force_Page {
 		}
 		return array(
 			'title'    => GCO_PD_Profile::fill( $shared['inspection_title'], $name ),
-			'text'     => wpautop( GCO_PD_Profile::fill( $shared['inspection_text'], $name ) ),
+			'text'     => wpautop( GCO_PD_Profile::fill( $text, $name ) ),
 			'image'    => $shared['inspection_image'] ? wp_get_attachment_image(
 				(int) $shared['inspection_image'],
 				'medium_large',

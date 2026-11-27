@@ -82,7 +82,7 @@ defined( 'ABSPATH' ) || exit;
 		</div>
 
 		<?php if ( '' !== trim( wp_strip_all_tags( (string) $note ) ) ) : ?>
-			<p class="gco-pd-fnote gco-pd-fwaits__note"><?php echo wp_kses_post( $note ); ?></p>
+			<div class="gco-pd-fnote gco-pd-fwaits__note"><?php echo wp_kses_post( $note ); ?></div>
 		<?php endif; ?>
 
 		<?php if ( $chart ) : ?>
