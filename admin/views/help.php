@@ -105,9 +105,13 @@ $gco_url = static function ( $page, array $args = array() ) {
 		</ol>
 		<p>Text that is the same on every force page (the security inspection block, the GP checklist, the disclaimer, the default photo) lives under <strong>Force Pages &rarr; Shared defaults</strong>. Write <code>{force}</code> where the force name should appear.</p>
 
+		<h3>Moving the existing force pages to the template</h3>
+		<p>Open <a href="<?php echo $gco_url( GCO_PD_Admin::SLUG_SETUP ); ?>">Setup</a>. <strong>Preview</strong> shows what would be read from a page (nothing changes). <strong>Move to template</strong> reads the page's written text into the force's content, keeps the old page content, and puts the template on the page. <strong>Restore original</strong> undoes it for one force.</p>
+
 		<h3>Adding a new force page</h3>
 		<ol>
-			<li>In WordPress create a new <strong>Page</strong> named like the others (for example "Surrey Police Firearms Licensing") and put <code>[gco_force_page]</code> in its content.</li>
+			<li>Easiest: open <a href="<?php echo $gco_url( GCO_PD_Admin::SLUG_SETUP ); ?>">Setup</a> and press <strong>Create missing pages</strong>. Every force without a page gets a draft page holding the template, already linked to the force.</li>
+			<li>By hand: create a <strong>Page</strong> named like the others (for example "Surrey Police Firearms Licensing") and put <code>[gco_force_page]</code> in its content (or add the &ldquo;Force page&rdquo; WPBakery element).</li>
 			<li>Link it to its force under <a href="<?php echo $gco_url( GCO_PD_Admin::SLUG_FORCES ); ?>">Forces</a> (the Page column).</li>
 			<li>Fill in its content under Force Pages and publish the page. The waiting times, charts and ranking appear as soon as that force has published figures.</li>
 		</ol>
@@ -115,6 +119,7 @@ $gco_url = static function ( $page, array $args = array() ) {
 
 	<section>
 		<h2>The portal page</h2>
+		<p><strong>First time:</strong> open <a href="<?php echo $gco_url( GCO_PD_Admin::SLUG_SETUP ); ?>">Setup</a>, choose the page and press <strong>Put the portal layout on this page</strong>. The page's earlier content is kept and can be restored. No command line is needed.</p>
 		<p>The portal is an ordinary page built in WPBakery from the "GCO Police Data" elements (search, stats, leaderboard, waiting times, guides, A&ndash;Z, how we research, FAQs). You can change the wording, move sections and add or remove them there. The figures inside them always come from the published data.</p>
 		<ul>
 			<li><strong>FAQs:</strong> add or edit the Toggle elements inside the "Police FAQs" element. Questions and answers are also sent to search engines automatically.</li>

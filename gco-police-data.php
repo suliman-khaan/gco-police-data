@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       GCO Police Data
  * Description:       Stores police force FOI responses and NPCC firearms-licensing figures, and renders the police licensing portal and force pages from them.
- * Version:           0.6.0
+ * Version:           0.7.0
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            Suliman K.
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GCO_PD_VERSION', '0.6.0' );
+define( 'GCO_PD_VERSION', '0.7.0' );
 define( 'GCO_PD_FILE', __FILE__ );
 define( 'GCO_PD_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GCO_PD_URL', plugin_dir_url( __FILE__ ) );

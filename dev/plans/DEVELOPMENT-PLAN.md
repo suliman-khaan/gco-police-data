@@ -236,6 +236,16 @@ Client asked for the force pages to follow the new blog template (reference: /wh
 - Portal layout is applied with `wp gco-pd portal apply`; no WP-CLI means no way to apply it from the admin yet (possible follow-up: an admin button).
 - Not checked: hero photo / crest (staging has no media), live PageSpeed.
 
+### M11 — Setup screen (no WP-CLI) · `feature/setup-screen` · **BUILT** (live site has no CLI access)
+
+Police Data → Setup does what the WP-CLI commands did, with buttons, and both now share `GCO_PD_Setup`:
+
+- Portal: put the bundled layout on a chosen page (old content kept, restorable; sets the Portal page setting) or create a draft page with it.
+- Force pages: preview (reads nothing back, changes nothing), move one or all older pages to the template (fills only empty profile fields, keeps the old content), restore one.
+- Create missing pages: draft page with the template, linked to the force, for forces without one; empty pages get the template.
+- Help and README point at Setup. Tested locally on South Yorkshire (preview, move, restore) and create-missing (21 drafts); 138 unit tests pass.
+- Local note: the 21 test drafts (IDs 9809-9829) are left on the local site to be trashed by hand.
+
 ## 4. Timeline
 
 Assumes work starts **Mon 16 Nov 2026**; the FOI data arrives ~**30 Nov**.
