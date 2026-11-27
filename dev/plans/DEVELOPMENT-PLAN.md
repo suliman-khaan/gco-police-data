@@ -261,6 +261,14 @@ Comparing the old City of London page with the migrated one found written conten
 - Setup: **Refresh from original** (one force or all) re-reads a moved page's stored original and fills only empty profile fields, so pages moved before 0.7.2 get the new fields without losing anything typed.
 - Still intentionally not carried over: the waiting-times table, FOI line and national figure cards (generated from the published data; nothing shows until a round is imported and published), and the guide cards (set the shared guide IDs).
 
+### 0.7.3 — per-force notes and inspection wording (live migration of 20 pages, 27 Nov 2026)
+
+After moving the 20 older live pages, a before/after comparison showed two kinds of per-force wording still lost:
+- **Waiting-times notes** in the old FOI box (how the force reported its times, "renewals are not tracked", "converted from weeks to days"): new per-force field **Note under the waiting times (this force)**; it replaces the shared note on that page. The extractor keeps every sentence of the box except the FOI request, date and reference statements (those come from the data). A note identical to the shared one is not stored.
+- **Security inspection wording** differed from page to page but the shared text can hold one version: new per-force field **Security inspection text (this force)**, which replaces the shared text on that page; identical-to-shared text is not stored.
+- Measured on the 21 old pages in the local copy: of 1,674 sentences, none outside the shared disclaimer and the FOI reference line is dropped any more.
+- On pages already moved: Setup > **Refresh moved pages from their originals** fills the two new fields (only empty fields are filled).
+
 ## 4. Timeline
 
 Assumes work starts **Mon 16 Nov 2026**; the FOI data arrives ~**30 Nov**.

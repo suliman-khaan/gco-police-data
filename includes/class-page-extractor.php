@@ -93,12 +93,15 @@ final class GCO_PD_Page_Extractor {
 				case 'inspection':
 					$shared['inspection_title'] = $heading;
 					$shared['inspection_text']  = self::column_texts( $section );
+					// Kept per force too: the wording differs from page to page, and the shared text can only hold one version.
+					$profile['inspection_text'] = $shared['inspection_text'];
 					if ( preg_match( '/\[products[^\]]*\bids="([^"]+)"/', $section, $m ) ) {
 						$shared['inspection_products'] = preg_replace( '/\s+/', '', $m[1] );
 					}
 					break;
 				case 'waits':
 					$profile['waits_text'] = self::waits_text( $section );
+					$profile['waits_note'] = self::waits_note( $section );
 					$report['skipped'][]    = $heading . ' (the table and FOI line are generated from the data)';
 					break;
 				case 'national':
@@ -294,6 +297,31 @@ final class GCO_PD_Page_Extractor {
 			}
 		}
 		return implode( "\n", $parts );
+	}
+
+	/**
+	 * The force's own notes about its waiting times, from the FOI box under the old table: everything except the
+	 * statements about the FOI request, its date and its reference (those come from the data now).
+	 *
+	 * @param string $section Section content.
+	 * @return string Limited HTML ("<p>..</p>") or ''.
+	 */
+	private static function waits_note( $section ) {
+		$kept = array();
+		foreach ( self::shortcodes( $section, 'porto_info_box' ) as $box ) {
+			$plain = self::text( (string) ( $box['atts']['subtitle'] ?? '' ) );
+			foreach ( preg_split( '/(?<=[.!?])\s+(?=[A-Z0-9"\x{201C}(])/u', $plain ) as $sentence ) {
+				$sentence = trim( (string) $sentence );
+				if ( '' === $sentence ) {
+					continue;
+				}
+				if ( preg_match( '/^(The information shown in this section was obtained|The response was provided|Freedom of Information \(FOI\) request submitted)/i', $sentence ) ) {
+					continue;
+				}
+				$kept[] = $sentence;
+			}
+		}
+		return $kept ? '<p>' . htmlspecialchars( implode( ' ', $kept ), ENT_QUOTES, 'UTF-8' ) . '</p>' : '';
 	}
 
 	/**

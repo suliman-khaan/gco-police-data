@@ -61,4 +61,38 @@ final class PageExtractorGapsTest extends TestCase {
 		$this->assertStringContainsString( 'generated from the data', implode( ' ', $report['skipped'] ) );
 		$this->assertSame( array(), $report['unknown'] );
 	}
+
+	/**
+	 * A page with an FOI box holding a force-specific note, and an inspection section with its own wording.
+	 *
+	 * @return string
+	 */
+	private function page_with_notes() {
+		return '[vc_row][vc_column][vc_custom_heading text="Testshire Police Firearms Licensing" font_container="tag:h1"][/vc_column][/vc_row]'
+			. '<h2>Current Waiting Times</h2>'
+			. '[porto_info_box subtitle="The information shown in this section was obtained through a Freedom of Information (FOI) request submitted by Gun Cabinets Online to Testshire Police. The response was provided on 03 June 2026 under reference number FOI2026/00001. Testshire Police confirmed that renewal times are not tracked. Times given in weeks have been converted into days."][/porto_info_box]'
+			. '<h2>Inspection Coming Up? Get Ready Before the Visit</h2>'
+			. '[vc_column_text]<p>Order online, install your cabinet and be ready when the officer visits.</p>[/vc_column_text]';
+	}
+
+	public function test_force_specific_waiting_time_notes_are_kept_without_the_foi_statements() {
+		$note = GCO_PD_Page_Extractor::extract( $this->page_with_notes() )['profile']['waits_note'] ?? '';
+		$this->assertStringContainsString( 'renewal times are not tracked', $note );
+		$this->assertStringContainsString( 'converted into days', $note );
+		$this->assertStringNotContainsString( 'response was provided', $note );
+		$this->assertStringNotContainsString( 'obtained through a Freedom of Information', $note );
+		$this->assertStringStartsWith( '<p>', $note );
+	}
+
+	public function test_a_box_with_only_foi_statements_gives_no_note() {
+		$page   = '<h2>Current Waiting Times</h2>[porto_info_box subtitle="The response was provided on 03 June 2026 under reference number X1."][/porto_info_box]';
+		$result = GCO_PD_Page_Extractor::extract( $page );
+		$this->assertArrayNotHasKey( 'waits_note', $result['profile'] );
+	}
+
+	public function test_inspection_wording_is_kept_for_the_force_as_well_as_offered_as_shared_text() {
+		$result = GCO_PD_Page_Extractor::extract( $this->page_with_notes() );
+		$this->assertStringContainsString( 'Order online, install your cabinet', $result['profile']['inspection_text'] ?? '' );
+		$this->assertStringContainsString( 'Order online, install your cabinet', $result['shared']['inspection_text'] ?? '' );
+	}
 }

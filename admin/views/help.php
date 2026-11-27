@@ -107,7 +107,7 @@ $gco_url = static function ( $page, array $args = array() ) {
 
 		<h3>Moving the existing force pages to the template</h3>
 		<p>Open <a href="<?php echo $gco_url( GCO_PD_Admin::SLUG_SETUP ); ?>">Setup</a>. <strong>Preview</strong> shows what would be read from a page (nothing changes). <strong>Move to template</strong> reads the page's written text into the force's content, keeps the old page content, and puts the template on the page. <strong>Restore original</strong> undoes it for one force.</p>
-		<p>A page that was moved earlier can be topped up later: <strong>Refresh from original</strong> reads its stored original again and fills only the fields that are still empty (for example the waiting-times introduction and the national comparison text added in 0.7.2). Anything already typed is left alone.</p>
+		<p>A page that was moved earlier can be topped up later: <strong>Refresh from original</strong> reads its stored original again and fills only the fields that are still empty (for example the waiting-times introduction, the note under the waiting times and the security inspection wording). Anything already typed is left alone.</p>
 
 		<h3>Adding a new force page</h3>
 		<ol>
