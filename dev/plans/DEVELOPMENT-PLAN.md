@@ -269,6 +269,10 @@ After moving the 20 older live pages, a before/after comparison showed two kinds
 - Measured on the 21 old pages in the local copy: of 1,674 sentences, none outside the shared disclaimer and the FOI reference line is dropped any more.
 - On pages already moved: Setup > **Refresh moved pages from their originals** fills the two new fields (only empty fields are filled).
 
+### 0.7.4 — keep the theme's grey bar (client request, 27 Nov 2026)
+
+The 0.7.1 spacing fix hid the theme's whole grey bar under the delivery strip. The client wanted the grey bar back and only the white gap below it removed. Portal: the hero starts directly under the grey bar (main content top padding 0). Force pages: grey bar kept, 14px before the hero card.
+
 ## 4. Timeline
 
 Assumes work starts **Mon 16 Nov 2026**; the FOI data arrives ~**30 Nov**.
