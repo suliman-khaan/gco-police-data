@@ -68,6 +68,12 @@ current page; `force="slug"` picks one.
 All of them are WPBakery elements under "GCO Police Data". Templates can be overridden by copying them from
 `templates/` to `{theme}/gco-police-data/`. CSS and JS load only on pages that use a shortcode.
 
+## Setup screen (no command line needed)
+
+Police Data → Setup does what the WP-CLI commands below do, with buttons: put the portal layout on a page of your choice
+(or create a draft page with it), preview and move force pages to the template (one at a time or all), create draft pages
+for forces without one, and restore any of it. Every change keeps the old content. The WP-CLI commands use the same code.
+
 ## WP-CLI
 
 ```bash

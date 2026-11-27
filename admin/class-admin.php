@@ -25,6 +25,7 @@ final class GCO_PD_Admin {
 	const SLUG_PAGES    = 'gco-pd-force-pages';
 	const SLUG_PROFILE  = 'gco-pd-force-profile';
 	const SLUG_HELP     = 'gco-pd-help';
+	const SLUG_SETUP    = 'gco-pd-setup';
 
 	/**
 	 * Handlers: action name => method.
@@ -42,6 +43,10 @@ final class GCO_PD_Admin {
 		'gco_pd_save_forces'    => 'handle_save_forces',
 		'gco_pd_save_profile'   => 'handle_save_profile',
 		'gco_pd_save_shared'    => 'handle_save_shared',
+		'gco_pd_setup_portal'   => 'handle_setup_portal',
+		'gco_pd_setup_migrate'  => 'handle_setup_migrate',
+		'gco_pd_setup_restore'  => 'handle_setup_restore',
+		'gco_pd_setup_pages'    => 'handle_setup_pages',
 		'gco_pd_import_upload'  => 'handle_import_upload',
 		'gco_pd_import_commit'  => 'handle_import_commit',
 		'gco_pd_import_cancel'  => 'handle_import_cancel',
@@ -77,6 +82,7 @@ final class GCO_PD_Admin {
 		add_submenu_page( self::SLUG_ROUNDS, 'Forces', 'Forces', $cap, self::SLUG_FORCES, array( __CLASS__, 'page_forces' ) );
 		add_submenu_page( self::SLUG_ROUNDS, 'Force Pages', 'Force Pages', $cap, self::SLUG_PAGES, array( __CLASS__, 'page_force_pages' ) );
 		add_submenu_page( self::SLUG_ROUNDS, 'Edit force page', 'Edit force page', $cap, self::SLUG_PROFILE, array( __CLASS__, 'page_profile' ) );
+		add_submenu_page( self::SLUG_ROUNDS, 'Setup', 'Setup', $cap, self::SLUG_SETUP, array( __CLASS__, 'page_setup' ) );
 		add_submenu_page( self::SLUG_ROUNDS, 'Settings', 'Settings', $cap, self::SLUG_SETTINGS, array( __CLASS__, 'page_settings' ) );
 		add_submenu_page( self::SLUG_ROUNDS, 'Help', 'Help', $cap, self::SLUG_HELP, array( __CLASS__, 'page_help' ) );
 		// The round editor is reachable by link only; it stays out of the menu.
@@ -924,5 +930,126 @@ final class GCO_PD_Admin {
 		GCO_PD_Profile::save_shared( $input );
 		self::notice( 'success', 'Shared force page defaults saved.' );
 		self::go( self::SLUG_PAGES, array( 'view' => 'shared' ) );
+	}
+
+	/* ------------------------------------------------------------------------- Setup */
+
+	/**
+	 * Setup screen: portal layout, force page template, missing pages.
+	 */
+	public static function page_setup() {
+		self::require_cap();
+		$rows    = GCO_PD_Setup::force_rows();
+		$preview = array();
+		$want    = isset( $_GET['preview'] ) ? sanitize_text_field( wp_unslash( $_GET['preview'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( '' !== $want ) {
+			if ( function_exists( 'set_time_limit' ) ) {
+				@set_time_limit( 120 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,Squiz.PHP.DiscouragedFunctions.Discouraged
+			}
+			$shared_saved = true; // A preview never writes shared defaults.
+			foreach ( $rows as $row ) {
+				$match = 'all' === $want ? $row['needs'] : ( (int) $want === (int) $row['force']->id );
+				if ( $match && $row['page_id'] ) {
+					$preview[] = GCO_PD_Setup::migrate_force( $row['force'], false, false, false, $shared_saved );
+				}
+			}
+		}
+		self::render(
+			'setup',
+			array(
+				'rows'       => $rows,
+				'pages'      => GCO_PD_Setup::pages(),
+				'portal_id'  => GCO_PD_Settings::get_int( 'portal_page_id' ),
+				'preview'    => $preview,
+				'preview_of' => $want,
+				'has_layout' => '' !== GCO_PD_Setup::portal_layout(),
+			)
+		);
+	}
+
+	/**
+	 * Portal layout: apply to a page, create a draft with it, or restore.
+	 */
+	public static function handle_setup_portal() {
+		self::guard( 'gco_pd_setup_portal' );
+		$op      = self::post_text( 'op' );
+		$page_id = self::post_int( 'page_id' );
+		if ( 'create' === $op ) {
+			$result = GCO_PD_Setup::portal_create( self::post_text( 'title' ) );
+			if ( is_wp_error( $result ) ) {
+				self::notice( 'error', $result->get_error_message() );
+			} else {
+				self::notice( 'success', sprintf( 'Draft page created (ID %d). Open it to check it, then choose it below to make it the portal.', $result ) );
+			}
+		} elseif ( 'restore' === $op ) {
+			$result = GCO_PD_Setup::portal_restore( $page_id );
+			self::notice( is_wp_error( $result ) ? 'error' : 'success', is_wp_error( $result ) ? $result->get_error_message() : 'The page has its previous content back.' );
+		} else {
+			$result = GCO_PD_Setup::portal_apply( $page_id );
+			self::notice( is_wp_error( $result ) ? 'error' : 'success', is_wp_error( $result ) ? $result->get_error_message() : 'The portal layout is on the page and the page is now the portal page. The old content is kept; Restore puts it back.' );
+		}
+		self::go( self::SLUG_SETUP );
+	}
+
+	/**
+	 * Moves one force page, or every old-layout page, to the template.
+	 */
+	public static function handle_setup_migrate() {
+		self::guard( 'gco_pd_setup_migrate' );
+		if ( function_exists( 'set_time_limit' ) ) {
+			@set_time_limit( 300 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,Squiz.PHP.DiscouragedFunctions.Discouraged
+		}
+		$scope        = self::post_text( 'scope' );
+		$shared_saved = false !== get_option( GCO_PD_Profile::SHARED_OPTION, false );
+		$done         = 0;
+		$errors       = array();
+		foreach ( GCO_PD_Setup::force_rows() as $row ) {
+			$match = 'all' === $scope ? $row['needs'] : ( (int) $scope === (int) $row['force']->id );
+			if ( ! $match || ! $row['page_id'] ) {
+				continue;
+			}
+			$report = GCO_PD_Setup::migrate_force( $row['force'], true, false, false, $shared_saved );
+			if ( 'migrated' === $report['status'] ) {
+				++$done;
+			} elseif ( 'error' === $report['status'] || 'all' !== $scope ) {
+				$errors[] = $row['force']->name . ': ' . implode( ' ', $report['messages'] );
+			}
+		}
+		do_action( 'gco_pd_data_changed' );
+		if ( $done ) {
+			self::notice( 'success', sprintf( '%d force page(s) moved to the template. Each one keeps its old content; Restore puts it back.', $done ) );
+		}
+		foreach ( $errors as $error ) {
+			self::notice( 'error', $error );
+		}
+		if ( ! $done && ! $errors ) {
+			self::notice( 'info', 'Nothing needed moving.' );
+		}
+		self::go( self::SLUG_SETUP );
+	}
+
+	/**
+	 * Puts a force page's original content back.
+	 */
+	public static function handle_setup_restore() {
+		self::guard( 'gco_pd_setup_restore' );
+		$force  = GCO_PD_Repository::get_force( self::post_int( 'force_id' ) );
+		$result = GCO_PD_Setup::restore_force( $force );
+		self::notice( is_wp_error( $result ) ? 'error' : 'success', is_wp_error( $result ) ? $result->get_error_message() : $force->name . ': the original page content is back. The written content in the force profile is kept.' );
+		self::go( self::SLUG_SETUP );
+	}
+
+	/**
+	 * Creates draft pages for forces without one and fills empty pages with the template.
+	 */
+	public static function handle_setup_pages() {
+		self::guard( 'gco_pd_setup_pages' );
+		$out = GCO_PD_Setup::create_missing_pages( true );
+		if ( $out['created'] || $out['filled'] ) {
+			self::notice( 'success', sprintf( '%1$d draft page(s) created and %2$d empty page(s) filled with the template. Publish them when the content is ready.', count( $out['created'] ), count( $out['filled'] ) ) );
+		} else {
+			self::notice( 'info', 'Every force already has a page with content.' );
+		}
+		self::go( self::SLUG_SETUP );
 	}
 }
