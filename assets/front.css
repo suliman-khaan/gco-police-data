@@ -436,10 +436,10 @@ html:has(.gco-pd-hero) { overflow-x: hidden; }
 	html:has(.gco-pd-fpage) { scroll-behavior: smooth; }
 }
 
-/* No empty breadcrumb bar or extra padding above the portal and force pages (same as the blog template). */
-body:has(.gco-pd-hero, .gco-pd-fpage) .page-top { display: none; }
+/* The theme's grey bar under the delivery strip stays; only the white gap below it (the main content's top padding) goes,
+   so the hero sits directly under the grey bar. */
 body:has(.gco-pd-hero) #main .main-content { padding-top: 0; }
-body:has(.gco-pd-fpage) #main .main-content { padding-top: 10px; }
+body:has(.gco-pd-fpage) #main .main-content { padding-top: 14px; }
 
 /* Force page: tagline, waiting-times text and note, share row, feedback invitation, national text */
 .gco-pd-fhero__tagline { margin: -8px 0 12px; color: #fff; font-size: 1.05rem; font-weight: 600; line-height: 1.4; }
