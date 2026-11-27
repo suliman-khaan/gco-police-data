@@ -65,7 +65,14 @@
 
 /* Hero */
 .gco-pd-hero { --gco-hero-image: none; position: relative; margin: 0; color: #fff; background: linear-gradient(90deg, rgba(6, 40, 37, .92) 0%, rgba(6, 50, 46, .78) 45%, rgba(6, 50, 46, .15) 100%), var(--gco-hero-image) center right / cover no-repeat, #0b3b37; }
-.gco-pd-hero__inner { max-width: 1200px; margin: 0 auto; padding: 44px 24px 40px; }
+/* The hero band runs edge to edge but its content lines up with the rest of the page: the section breaks out of the
+   theme's container with negative margins and pads its content back in, so it needs no stretched WPBakery row. */
+.gco-pd-hero { margin-inline: calc(50% - 50vw); padding-inline: calc(50vw - 50%); }
+.gco-pd-hero__inner { max-width: none; margin: 0; padding: 44px 0 40px; }
+html:has(.gco-pd-hero) { overflow-x: hidden; }
+/* Pages built before 0.7.1 use a stretched WPBakery row: keep their centred 1200px content box. */
+.vc_row[data-vc-stretch-content="true"] .gco-pd-hero { margin-inline: 0; padding-inline: 0; }
+.vc_row[data-vc-stretch-content="true"] .gco-pd-hero__inner { max-width: 1200px; margin: 0 auto; padding: 44px 24px 40px; }
 .gco-pd-hero__title { margin: 0 0 .35em; max-width: 760px; color: #fff; font-size: clamp(1.9rem, 3.6vw, 2.75rem); line-height: 1.12; font-weight: 700; }
 .gco-pd-hero__intro { max-width: 600px; margin: 0 0 1.4em; color: #e9f2f0; font-size: 1rem; }
 .gco-pd-search--hero .gco-pd-search__form { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
@@ -310,7 +317,8 @@
 }
 @media (max-width: 520px) {
 	.gco-pd-stats, .gco-pd-guides { grid-template-columns: 1fr; }
-	.gco-pd-hero__inner { padding: 32px 16px; }
+	.gco-pd-hero__inner { padding: 32px 0; }
+	.vc_row[data-vc-stretch-content="true"] .gco-pd-hero__inner { padding: 32px 16px; }
 	.gco-pd-search__button { padding: .6em 1em; }
 	.gco-pd-stat__value { font-size: 1.4rem; }
 }
@@ -427,3 +435,8 @@
 @media (prefers-reduced-motion: no-preference) {
 	html:has(.gco-pd-fpage) { scroll-behavior: smooth; }
 }
+
+/* No empty breadcrumb bar or extra padding above the portal and force pages (same as the blog template). */
+body:has(.gco-pd-hero, .gco-pd-fpage) .page-top { display: none; }
+body:has(.gco-pd-hero) #main .main-content { padding-top: 0; }
+body:has(.gco-pd-fpage) #main .main-content { padding-top: 10px; }

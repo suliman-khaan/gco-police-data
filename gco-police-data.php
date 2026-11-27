@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       GCO Police Data
  * Description:       Stores police force FOI responses and NPCC firearms-licensing figures, and renders the police licensing portal and force pages from them.
- * Version:           0.7.0
+ * Version:           0.7.1
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            Suliman K.
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GCO_PD_VERSION', '0.7.0' );
+define( 'GCO_PD_VERSION', '0.7.1' );
 define( 'GCO_PD_FILE', __FILE__ );
 define( 'GCO_PD_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GCO_PD_URL', plugin_dir_url( __FILE__ ) );
@@ -31,6 +31,42 @@ function gco_pd_requirements_met() {
 	global $wp_version;
 	return version_compare( PHP_VERSION, GCO_PD_MIN_PHP, '>=' )
 		&& version_compare( $wp_version, GCO_PD_MIN_WP, '>=' );
+}
+
+/**
+ * Core files that are missing from the plugin folder (an incomplete upload), as relative paths.
+ *
+ * @return string[]
+ */
+function gco_pd_missing_files() {
+	$list = GCO_PD_DIR . 'required-files.php';
+	if ( ! is_readable( $list ) ) {
+		return array( 'required-files.php' );
+	}
+	$missing = array();
+	foreach ( (array) include $list as $file ) {
+		if ( ! is_readable( GCO_PD_DIR . $file ) ) {
+			$missing[] = $file;
+		}
+	}
+	return $missing;
+}
+
+/**
+ * Admin notice shown instead of loading the plugin when files are missing.
+ */
+function gco_pd_files_notice() {
+	if ( ! current_user_can( 'activate_plugins' ) ) {
+		return;
+	}
+	$missing = gco_pd_missing_files();
+	printf(
+		'<div class="notice notice-error"><p><strong>%1$s</strong> %2$s</p><p>%3$s <code>%4$s</code></p></div>',
+		esc_html__( 'GCO Police Data has not been loaded.', 'gco-police-data' ),
+		esc_html__( 'Some of its files are missing from the plugin folder, which usually means the upload did not finish. Delete the plugin and upload the zip again under Plugins > Add New > Upload Plugin.', 'gco-police-data' ),
+		esc_html__( 'Missing:', 'gco-police-data' ),
+		esc_html( implode( ', ', array_slice( $missing, 0, 12 ) ) . ( count( $missing ) > 12 ? sprintf( ' (+%d more)', count( $missing ) - 12 ) : '' ) )
+	);
 }
 
 /**
@@ -57,6 +93,14 @@ function gco_pd_requirements_notice() {
  * Activation: refuse to activate on unsupported servers, then run the installer.
  */
 function gco_pd_activate() {
+	if ( gco_pd_missing_files() ) {
+		deactivate_plugins( plugin_basename( GCO_PD_FILE ) );
+		wp_die(
+			esc_html__( 'GCO Police Data cannot be activated: some of its files are missing, so the upload did not finish. Delete the plugin and upload the zip again.', 'gco-police-data' ),
+			'',
+			array( 'back_link' => true )
+		);
+	}
 	if ( ! gco_pd_requirements_met() ) {
 		deactivate_plugins( plugin_basename( GCO_PD_FILE ) );
 		wp_die(
@@ -85,6 +129,11 @@ register_activation_hook( GCO_PD_FILE, 'gco_pd_activate' );
 
 if ( ! gco_pd_requirements_met() ) {
 	add_action( 'admin_notices', 'gco_pd_requirements_notice' );
+	return;
+}
+
+if ( gco_pd_missing_files() ) {
+	add_action( 'admin_notices', 'gco_pd_files_notice' );
 	return;
 }
 
