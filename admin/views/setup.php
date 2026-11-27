@@ -21,8 +21,12 @@ $gco_count = array(
 	'old'      => 0,
 	'none'     => 0,
 	'blank'    => 0,
+	'refresh'  => 0,
 );
 foreach ( $rows as $gco_row ) {
+	if ( ! empty( $gco_row['refreshable'] ) ) {
+		++$gco_count['refresh'];
+	}
 	if ( 'none' === $gco_row['state'] ) {
 		++$gco_count['none'];
 	} elseif ( $gco_row['blank'] ) {
@@ -91,6 +95,15 @@ $gco_back   = esc_url( GCO_PD_Admin::url( GCO_PD_Admin::SLUG_SETUP ) );
 				<input type="hidden" name="action" value="gco_pd_setup_migrate">
 				<input type="hidden" name="scope" value="all">
 				<button type="submit" class="button button-primary">Move all to the template</button>
+			</form>
+		<?php endif; ?>
+		<?php if ( $gco_count['refresh'] ) : ?>
+			<form method="post" action="<?php echo $gco_action; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>" style="display:inline" onsubmit="return confirm('Read each moved page&#39;s stored original again and fill only the fields that are still empty?');">
+				<?php wp_nonce_field( 'gco_pd_setup_migrate' ); ?>
+				<input type="hidden" name="action" value="gco_pd_setup_migrate">
+				<input type="hidden" name="scope" value="all">
+				<input type="hidden" name="mode" value="refresh">
+				<button type="submit" class="button">Refresh moved pages from their originals (<?php echo esc_html( (string) $gco_count['refresh'] ); ?>)</button>
 			</form>
 		<?php endif; ?>
 		<?php if ( $gco_count['none'] || $gco_count['blank'] ) : ?>
@@ -172,6 +185,16 @@ $gco_back   = esc_url( GCO_PD_Admin::url( GCO_PD_Admin::SLUG_SETUP ) );
 							<input type="hidden" name="action" value="gco_pd_setup_migrate">
 							<input type="hidden" name="scope" value="<?php echo esc_attr( (string) $gco_force->id ); ?>">
 							&middot; <button type="submit" class="button-link">Move to template</button>
+						</form>
+					<?php endif; ?>
+					<?php if ( ! empty( $gco_row['refreshable'] ) ) : ?>
+						<a href="<?php echo esc_url( GCO_PD_Admin::url( GCO_PD_Admin::SLUG_SETUP, array( 'preview' => (int) $gco_force->id ) ) ); ?>">Preview refresh</a>
+						<form method="post" action="<?php echo $gco_action; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>" style="display:inline">
+							<?php wp_nonce_field( 'gco_pd_setup_migrate' ); ?>
+							<input type="hidden" name="action" value="gco_pd_setup_migrate">
+							<input type="hidden" name="scope" value="<?php echo esc_attr( (string) $gco_force->id ); ?>">
+							<input type="hidden" name="mode" value="refresh">
+							&middot; <button type="submit" class="button-link">Refresh from original</button>
 						</form>
 					<?php endif; ?>
 					<?php if ( $gco_row['backup'] ) : ?>

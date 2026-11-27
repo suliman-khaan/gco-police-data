@@ -3,6 +3,7 @@
  * Force page: national firearms licensing overview (NPCC).
  *
  * @var string  $subtitle Subtitle.
+ * @var string  $text     Written comparison (limited HTML) or ''.
  * @var array[] $cards    [icon, value|null, label].
  * @var string  $pct      % completed within 4 months.
  * @var string  $source   Source line.
@@ -21,6 +22,10 @@ defined( 'ABSPATH' ) || exit;
 			<p class="gco-pd-card__sub"><?php echo esc_html( $subtitle ); ?></p>
 		</div>
 	</header>
+	<?php if ( '' !== $text ) : ?>
+		<div class="gco-pd-prose gco-pd-fnational"><?php echo wp_kses_post( $text ); ?></div>
+	<?php endif; ?>
+	<?php if ( $cards ) : ?>
 	<div class="gco-pd-stats gco-pd-stats--plain">
 		<?php foreach ( $cards as $card ) : ?>
 			<div class="gco-pd-stat">
@@ -36,7 +41,10 @@ defined( 'ABSPATH' ) || exit;
 			</div>
 		<?php endforeach; ?>
 	</div>
+	<?php endif; ?>
+	<?php if ( '' !== $source ) : ?>
 	<p class="gco-pd-note gco-pd-fsource"><?php echo esc_html( $source . ( $pct ? ' This force completed ' . $pct . ' within 4 months.' : '' ) ); ?></p>
+	<?php endif; ?>
 </section>
 <?php
 // phpcs:enable

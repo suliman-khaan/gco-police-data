@@ -5,6 +5,7 @@
  * @var string  $subtitle Subtitle.
  * @var string  $intro    Summary paragraph.
  * @var array[] $quotes   quote, who, source.
+ * @var string  $feedback Feedback invitation (limited HTML) or ''.
  *
  * @package GCO_Police_Data
  */
@@ -41,5 +42,8 @@ defined( 'ABSPATH' ) || exit;
 				</figure>
 			<?php endforeach; ?>
 		</div>
+	<?php endif; ?>
+	<?php if ( '' !== trim( wp_strip_all_tags( (string) $feedback ) ) ) : ?>
+		<p class="gco-pd-fnote gco-pd-ffeedback"><?php echo wp_kses_post( $feedback ); ?></p>
 	<?php endif; ?>
 </section>

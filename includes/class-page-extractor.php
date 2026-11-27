@@ -45,7 +45,7 @@ final class GCO_PD_Page_Extractor {
 	 *
 	 * @var string[]
 	 */
-	const GENERATED = array( 'waits', 'national', 'guides' );
+	const GENERATED = array( 'guides' );
 
 	/**
 	 * Extracts profile values, shared-block candidates and a report.
@@ -96,6 +96,14 @@ final class GCO_PD_Page_Extractor {
 					if ( preg_match( '/\[products[^\]]*\bids="([^"]+)"/', $section, $m ) ) {
 						$shared['inspection_products'] = preg_replace( '/\s+/', '', $m[1] );
 					}
+					break;
+				case 'waits':
+					$profile['waits_text'] = self::waits_text( $section );
+					$report['skipped'][]    = $heading . ' (the table and FOI line are generated from the data)';
+					break;
+				case 'national':
+					$profile['national_text'] = self::national_text( $section );
+					$report['skipped'][]      = $heading . ' (the figure cards are generated from the data)';
 					break;
 				case 'faqs':
 					self::read_faqs( $section, $profile, $shared );
@@ -262,6 +270,56 @@ final class GCO_PD_Page_Extractor {
 				break;
 			}
 		}
+	}
+
+	/**
+	 * The explanatory paragraphs of the old "Current Waiting Times" section: every text block except the
+	 * table, the share prompt (and its AddToAny button) and the FOI note.
+	 *
+	 * @param string $section Section content.
+	 * @return string
+	 */
+	private static function waits_text( $section ) {
+		$parts = array();
+		foreach ( self::shortcodes( $section, 'vc_column_text' ) as $block ) {
+			$body = (string) $block['content'];
+			if ( false !== strpos( $body, '[addtoany' ) ) {
+				continue;
+			}
+			// Without the table, and without headings (the share prompt's "Know someone ..." lines are headings).
+			$body = preg_replace( '#<table\b.*?</table>#is', '', $body );
+			$html = self::html( preg_replace( '#<h[1-6][^>]*>.*?</h[1-6]>#is', '', $body ) );
+			if ( '' !== self::text( $html ) ) {
+				$parts[] = $html;
+			}
+		}
+		return implode( "\n", $parts );
+	}
+
+	/**
+	 * The written paragraphs of the old "National Licensing Context" section. The number cards and their labels
+	 * are generated from the data now, so short label blocks are left out.
+	 *
+	 * @param string $section Section content.
+	 * @return string
+	 */
+	private static function national_text( $section ) {
+		$labels = array( 'national performance ranking', 'firearm and shotgun certificate holders', 'applications received', 'applications completed' );
+		$parts  = array();
+		foreach ( self::shortcodes( $section, 'vc_column_text' ) as $block ) {
+			$html  = self::html( preg_replace( '#<h[1-6][^>]*>.*?</h[1-6]>#is', '', (string) $block['content'] ) );
+			$plain = self::text( $html );
+			if ( '' === $plain || strlen( $plain ) < 60 ) {
+				continue;
+			}
+			foreach ( $labels as $label ) {
+				if ( 0 === stripos( $plain, $label ) && strlen( $plain ) < 90 ) {
+					continue 2;
+				}
+			}
+			$parts[] = $html;
+		}
+		return implode( "\n", $parts );
 	}
 
 	/**
