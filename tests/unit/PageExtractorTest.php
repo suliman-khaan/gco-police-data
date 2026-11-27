@@ -123,7 +123,7 @@ final class PageExtractorTest extends TestCase {
 
 	public function test_report_lists_generated_and_unknown_sections(): void {
 		$report = GCO_PD_Page_Extractor::extract( $this->page() )['report'];
-		$this->assertContains( 'Current Waiting Times (now generated from the data)', $report['skipped'] );
+		$this->assertContains( 'Current Waiting Times (the table and FOI line are generated from the data)', $report['skipped'] );
 		$this->assertSame( array( 'Something New' ), $report['unknown'] );
 		$this->assertContains( 'quotes (1)', $report['found'] );
 	}
