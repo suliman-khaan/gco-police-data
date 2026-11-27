@@ -25,9 +25,15 @@ final class GCO_PD_CLI {
 	const BACKUP_CSS  = '_gco_pd_pre_m6_css';
 
 	/**
-	 * Page content written by the migration: full-width hero row + body row.
+	 * Page content written by the migration: one row, the hero card sits inside the page layout.
 	 */
-	const TEMPLATE_CONTENT = '[vc_row full_width="stretch_row_content_no_spaces"][vc_column][gco_force_page part="hero"][/vc_column][/vc_row][vc_row][vc_column][gco_force_page part="body"][/vc_column][/vc_row]';
+	const TEMPLATE_CONTENT = '[vc_row][vc_column][gco_force_page][/vc_column][/vc_row]';
+
+	/**
+	 * Content written by migrations before the blog layout (full-width hero row + body row). Pages that still
+	 * have exactly this are moved to TEMPLATE_CONTENT on the next migrate --apply.
+	 */
+	const OLD_TEMPLATE_CONTENT = '[vc_row full_width="stretch_row_content_no_spaces"][vc_column][gco_force_page part="hero"][/vc_column][/vc_row][vc_row][vc_column][gco_force_page part="body"][/vc_column][/vc_row]';
 
 	/**
 	 * Registers the command.
@@ -179,7 +185,7 @@ final class GCO_PD_CLI {
 			}
 
 			// 4. Page content (a revision of the old content is stored by WordPress).
-			if ( ! $keep && ! has_shortcode( $content, 'gco_force_page' ) ) {
+			if ( ! $keep && ( ! has_shortcode( $content, 'gco_force_page' ) || self::OLD_TEMPLATE_CONTENT === trim( $content ) ) ) {
 				$updated = wp_update_post(
 					array(
 						'ID'           => $page_id,

@@ -7,8 +7,10 @@
  * has nothing to show. Templates live in templates/force-page/ and can be overridden from
  * {theme}/gco-police-data/force-page/.
  *
- * The migration writes the page as two WPBakery rows: a full-width row with part="hero" and a normal
- * row with part="body", so the hero can stretch edge to edge inside the theme.
+ * Layout follows the site's blog template: a main column that opens with the hero card, and a sidebar with
+ * a sticky "FOI at a glance" box and "On this page" links. The migration writes one
+ * WPBakery row with [gco_force_page]. Pages migrated before this layout use two rows (part="hero" and
+ * part="body"): part="hero" now renders nothing and part="body" renders the whole page, so they keep working.
  *
  * @package GCO_Police_Data
  */
@@ -39,6 +41,19 @@ final class GCO_PD_Force_Page {
 	const CHART_ROUNDS = 4;
 
 	/**
+	 * Short labels for the waiting times in the sidebar box.
+	 *
+	 * @var array<string,string>
+	 */
+	const GLANCE_LABELS = array(
+		'sg_grant'  => 'Shotgun grant',
+		'fac_grant' => 'Firearm grant',
+		'sg_renew'  => 'Shotgun renewal',
+		'fac_renew' => 'Firearm renewal',
+		'variation' => 'Variation',
+	);
+
+	/**
 	 * Renders the shortcode.
 	 *
 	 * @param array $atts Attributes.
@@ -58,17 +73,11 @@ final class GCO_PD_Force_Page {
 			return GCO_PD_Shortcodes::no_force();
 		}
 
-		$part = in_array( $atts['part'], array( 'all', 'hero', 'body' ), true ) ? $atts['part'] : 'all';
-		$data = self::build( $force );
-
-		$html = '';
-		if ( 'body' !== $part ) {
-			$html .= GCO_PD_Shortcodes::template( 'force-page/hero', $data['hero'] );
+		// The hero card sits inside the main column, so part="hero" (older two-row pages) has nothing to add.
+		if ( 'hero' === $atts['part'] ) {
+			return '';
 		}
-		if ( 'hero' !== $part ) {
-			$html .= GCO_PD_Shortcodes::template( 'force-page/body', $data );
-		}
-		return $html;
+		return GCO_PD_Shortcodes::template( 'force-page/body', self::build( $force ) );
 	}
 
 	/**
@@ -101,7 +110,8 @@ final class GCO_PD_Force_Page {
 			'guides'   => self::guides( $profile, $shared ),
 			'review'   => self::review( $force, $profile, $shared, $name ),
 		);
-		$data['nav'] = self::nav( $data );
+		$data['glance'] = self::glance( $force, $data['waits'], $shared );
+		$data['nav']    = self::nav( $data );
 		return $data;
 	}
 
@@ -128,7 +138,15 @@ final class GCO_PD_Force_Page {
 		$page_id = (int) ( $force['page_id'] ?? 0 );
 		$title   = $page_id ? html_entity_decode( get_the_title( $page_id ), ENT_QUOTES, 'UTF-8' ) : '';
 		$crumbs[] = array( '' !== $title ? $title : $force['name'], '' );
+
+		// "Updated" date: the page review date, else the date of the FOI response shown.
+		$updated = GCO_PD_Format::date( $profile['reviewed'] );
+		if ( '' === $updated ) {
+			$updated = GCO_PD_Format::date( $force['foi']['response_date'] ?? '' );
+		}
 		return array(
+			'updated' => $updated,
+			'portal'  => ( $portal && 'publish' === get_post_status( $portal ) ) ? get_permalink( $portal ) : '',
 			'title'   => '' !== $title ? $title : $force['name'] . ' Firearms Licensing',
 			'tagline' => '' !== $profile['tagline'] ? $profile['tagline'] : GCO_PD_Profile::fill( $shared['tagline'], $force['name'] ),
 			'intro'   => $profile['intro'],
@@ -729,28 +747,91 @@ final class GCO_PD_Force_Page {
 	}
 
 	/**
-	 * Jump navigation: only sections that are on the page.
+	 * Sidebar "FOI at a glance": the five waiting times, the shotgun grant change, NPCC rank and holders,
+	 * the FOI reference and date, and the two buttons. Null when the force has no FOI or NPCC figures.
+	 *
+	 * @param array $force  Snapshot force.
+	 * @param array $waits  Built waiting-times section.
+	 * @param array $shared Shared defaults.
+	 * @return array|null
+	 */
+	private static function glance( array $force, array $waits, array $shared ) {
+		$npcc = $force['npcc'] ?? null;
+		if ( ! empty( $waits['empty'] ) && ! $npcc ) {
+			return null;
+		}
+
+		$rows = array();
+		if ( empty( $waits['empty'] ) ) {
+			$labels = array_values( self::GLANCE_LABELS );
+			foreach ( $waits['rows'] as $i => $row ) {
+				$rows[] = array(
+					'label'  => $labels[ $i ] ?? $row['label'],
+					'figure' => $row['figure'],
+				);
+			}
+		}
+
+		$stats = array();
+		if ( $npcc && ! empty( $npcc['rank'] ) ) {
+			$stats[] = array( GCO_PD_Format::ordinal( $npcc['rank'] ) . ' / ' . $npcc['ranked_of'], 'National ranking (NPCC)' );
+		}
+		if ( $npcc && null !== ( $npcc['pct'] ?? null ) ) {
+			$stats[] = array( GCO_PD_Format::percent( $npcc['pct'] ), 'Completed within 4 months' );
+		}
+		$sg  = $force['foi']['metrics']['sg_holders']['value'] ?? null;
+		$fac = $force['foi']['metrics']['fac_holders']['value'] ?? null;
+		if ( null !== $sg && null !== $fac ) {
+			$stats[] = array( GCO_PD_Format::number( $sg + $fac ), 'Certificate holders' );
+		} elseif ( $npcc && null !== ( $npcc['holders'] ?? null ) ) {
+			$stats[] = array( GCO_PD_Format::number( $npcc['holders'] ), 'Certificate holders' );
+		}
+
+		return array(
+			'rows'     => $rows,
+			'change'   => empty( $waits['empty'] ) ? $waits['change'] : null,
+			'stats'    => $stats,
+			'ref'      => empty( $waits['empty'] ) ? $waits['ref'] : null,
+			'date'     => empty( $waits['empty'] ) ? ( '' !== $waits['date'] ? $waits['date'] : $waits['round'] ) : '',
+			'stale'    => ! empty( $waits['stale'] ),
+			'round'    => $waits['round'] ?? '',
+			'btn_text' => $shared['inspection_btn_text'],
+			'btn_url'  => $shared['inspection_btn_url'],
+		);
+	}
+
+	/**
+	 * "On this page" links: only sections that are on the page, in page order.
 	 *
 	 * @param array $data Built sections.
-	 * @return array[] id, label (two lines), icon.
+	 * @return array[] id, label.
 	 */
 	private static function nav( array $data ) {
 		$nav = array();
-		if ( $data['contact'] ) {
-			$nav[] = array( 'gco-contact', array( 'Contact Details &', 'General Info' ), 'phone' );
+		if ( $data['area'] ) {
+			$nav[] = array( 'gco-area', 'Firearms licensing in this area' );
 		}
-		if ( $data['gp'] ) {
-			$nav[] = array( 'gco-gp', array( 'GP Medical', 'Assessments' ), 'medical' );
+		$nav[] = array( 'gco-waits', 'Current waiting times' );
+		if ( $data['apps'] ) {
+			$nav[] = array( 'gco-applications', 'Applications and backlog' );
 		}
 		if ( $data['reports'] ) {
-			$nav[] = array( 'gco-reports', array( 'Recent Comments', '& Feedback' ), 'comment' );
+			$nav[] = array( 'gco-reports', 'Applicant reports' );
 		}
-		$nav[] = array( 'gco-waits', array( 'Current', 'Waiting Times' ), 'clock' );
-		if ( $data['apps'] ) {
-			$nav[] = array( 'gco-applications', array( 'Applications', '& Backlog' ), 'document' );
+		if ( $data['gp'] ) {
+			$nav[] = array( 'gco-gp', 'GP medical assessments' );
+		}
+		if ( $data['contact'] ) {
+			$nav[] = array( 'gco-contact', 'Contact details' );
+		}
+		if ( $data['overview'] ) {
+			$nav[] = array( 'gco-overview', 'National overview' );
+		}
+		if ( $data['inspect'] ) {
+			$nav[] = array( 'gco-inspection', 'Security inspection' );
 		}
 		if ( $data['faqs'] ) {
-			$nav[] = array( 'gco-faqs', array( 'FAQs', '' ), 'help' );
+			$nav[] = array( 'gco-faqs', 'FAQs' );
 		}
 		return $nav;
 	}

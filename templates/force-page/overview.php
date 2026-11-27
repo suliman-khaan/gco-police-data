@@ -13,7 +13,7 @@
 defined( 'ABSPATH' ) || exit;
 // phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- icons are fixed markup.
 ?>
-<section class="gco-pd-card gco-pd-fcard">
+<section class="gco-pd-card gco-pd-fcard gco-pd-anchor" id="gco-overview">
 	<header class="gco-pd-card__head">
 		<?php echo GCO_PD_Icons::get( 'trophy', 'gco-pd-card__icon' ); ?>
 		<div class="gco-pd-card__titles">

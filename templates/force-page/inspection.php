@@ -15,7 +15,7 @@
 defined( 'ABSPATH' ) || exit;
 // phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- icons are fixed markup; image and products come from WordPress/WooCommerce.
 ?>
-<section class="gco-pd-card gco-pd-fcard gco-pd-inspect">
+<section class="gco-pd-card gco-pd-fcard gco-pd-inspect gco-pd-anchor" id="gco-inspection">
 	<div class="gco-pd-inspect__row">
 		<?php echo GCO_PD_Icons::get( 'shield', 'gco-pd-card__icon' ); ?>
 		<div class="gco-pd-inspect__text">
