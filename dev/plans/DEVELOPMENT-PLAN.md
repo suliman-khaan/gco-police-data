@@ -246,6 +246,12 @@ Police Data → Setup does what the WP-CLI commands did, with buttons, and both 
 - Help and README point at Setup. Tested locally on South Yorkshire (preview, move, restore) and create-missing (21 drafts); 138 unit tests pass.
 - Local note: the 21 test drafts (IDs 9809-9829) are left on the local site to be trashed by hand.
 
+### 0.7.1 — portal hero alignment and incomplete-upload check (from live feedback, 27 Nov 2026)
+
+- Portal hero: the band stays edge to edge but its content now lines up with the sections below (it was a centred 1200px box inside a wider page container); the layout no longer needs a stretched WPBakery row. Older pages with the stretched row keep their look until the layout is re-applied from Setup.
+- No empty breadcrumb bar or extra top padding above the portal and force pages (same as the blog template).
+- Live showed a fatal error (`GCO_PD_Admin` not found): the `admin/` folder had not been uploaded. The plugin now checks its core files (`required-files.php`) before loading and shows a plain notice naming what is missing, instead of a fatal error that locks wp-admin; activation refuses with the same message. A unit test keeps the list in step with the real class files.
+
 ## 4. Timeline
 
 Assumes work starts **Mon 16 Nov 2026**; the FOI data arrives ~**30 Nov**.
