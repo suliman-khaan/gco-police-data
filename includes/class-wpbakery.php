@@ -174,6 +174,7 @@ final class GCO_PD_WPBakery {
 						self::text( 'ids', 'Page or post IDs', 'Comma separated, in display order. Leave empty to use the latest posts.' ),
 						self::text( 'category', 'Category slug', 'Used when no IDs are given.' ),
 						self::text( 'limit', 'Number of cards', '', '4' ),
+						self::text( 'highlight', 'Highlighted card IDs', 'Comma separated. Pages are highlighted automatically; add IDs here to highlight any other card.' ),
 					),
 					$card
 				),

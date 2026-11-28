@@ -64,7 +64,10 @@
 .gco-pd.is-collapsed [data-gco-collapsed-only] { display: inline; }
 
 /* Hero */
-.gco-pd-hero { --gco-hero-image: none; position: relative; margin: 0; color: #fff; background: linear-gradient(90deg, rgba(6, 40, 37, .92) 0%, rgba(6, 50, 46, .78) 45%, rgba(6, 50, 46, .15) 100%), var(--gco-hero-image) center right / cover no-repeat, #0b3b37; }
+.gco-pd-hero { --gco-hero-image: none; position: relative; isolation: isolate; margin: 0; color: #fff; background: #0b3b37; }
+/* The photo sits on its own layer so it can be black and white while the green wash and the text stay in colour. */
+.gco-pd-hero::before { content: ""; position: absolute; inset: 0; z-index: -2; background: var(--gco-hero-image) center right / cover no-repeat; filter: grayscale(1) contrast(1.05); }
+.gco-pd-hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(6, 40, 37, .92) 0%, rgba(6, 50, 46, .78) 45%, rgba(6, 50, 46, .15) 100%); }
 /* The hero band runs edge to edge but its content lines up with the rest of the page: the section breaks out of the
    theme's container with negative margins and pads its content back in, so it needs no stretched WPBakery row. */
 .gco-pd-hero { margin-inline: calc(50% - 50vw); padding-inline: calc(50vw - 50%); }
@@ -453,3 +456,14 @@ body:has(.gco-pd-fpage) #main .main-content { padding-top: 14px; }
 .gco-pd-share__link:hover { background: var(--gco-brand); color: #fff !important; }
 .gco-pd-share .a2a_kit { line-height: 1; }
 .gco-pd-ffeedback { margin-top: 14px; }
+
+/* Guide cards: a page (such as the shop landing page) stands out from the blog articles beside it. */
+.gco-pd-guide--highlight { background: var(--gco-brand); border-color: var(--gco-brand); box-shadow: 0 10px 26px rgba(6, 77, 73, .30); }
+.gco-pd-guide--highlight .gco-pd-guide__title a, .gco-pd-guide--highlight .gco-pd-guide__more { color: #fff !important; }
+.gco-pd-guide--highlight .gco-pd-guide__media { background: #043836; }
+.gco-pd-guide__placeholder--shield { flex-direction: column; gap: 10px; background: radial-gradient(circle at 30% 20%, #12857d 0%, #064d49 55%, #032e2c 100%); color: #fff; }
+.gco-pd-guide__placeholder--shield .gco-pd-icon { width: 64px; height: 64px; opacity: 1; stroke-width: 1.6; }
+.gco-pd-guide__badge { padding: 3px 12px; border: 1px solid rgba(255, 255, 255, .55); border-radius: 999px; font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+
+/* A-Z browse: collapsed hint */
+.gco-pd-az__hint { margin: 0; padding: 14px 0 4px; color: var(--gco-mute); font-size: .9rem; }
