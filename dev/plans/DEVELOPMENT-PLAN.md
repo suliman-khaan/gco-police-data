@@ -273,6 +273,14 @@ After moving the 20 older live pages, a before/after comparison showed two kinds
 
 The 0.7.1 spacing fix hid the theme's whole grey bar under the delivery strip. The client wanted the grey bar back and only the white gap below it removed. Portal: the hero starts directly under the grey bar (main content top padding 0). Force pages: grey bar kept, 14px before the hero card.
 
+### 0.7.5 — main police page feedback from the client (28 Nov 2026)
+
+- Hero photo is black and white (the photo is its own layer with a grayscale filter, so any photo set in the hero element works; the green wash and text stay in colour).
+- Guide cards: a card that is a page (the shop landing page) stands out from blog articles: green card, shield and "Police approved" badge when it has no photo, white text; `highlight="ID,ID"` on the guides element highlights any other card.
+- Stat card label is "Total firearm, shotgun and RFD certificates in England & Wales".
+- A-Z list starts collapsed with a hint; a letter or All opens it, clicking the open letter again closes it; the hero's "Browse all" link and "View all" link open the whole list; without JavaScript the full list still shows.
+- Next: the individual force page rework (no sidebar, same look as the main page) once the client's comments arrive.
+
 ## 4. Timeline
 
 Assumes work starts **Mon 16 Nov 2026**; the FOI data arrives ~**30 Nov**.

@@ -1,6 +1,7 @@
 <?php
 /**
- * A-Z browse. Without JavaScript the full list is shown and the letters jump to their group.
+ * A-Z browse. With JavaScript the list starts collapsed and opens on a letter or All; without JavaScript
+ * the full list is shown and the letters jump to their group.
  *
  * @var string $id     Unique id prefix.
  * @var array  $groups Letter => list of name/url.
@@ -17,6 +18,7 @@ defined( 'ABSPATH' ) || exit;
 			<a class="gco-pd-az__letter" href="#<?php echo esc_attr( $id . '-' . $letter ); ?>" data-letter="<?php echo esc_attr( $letter ); ?>"><?php echo esc_html( $letter ); ?></a>
 		<?php endforeach; ?>
 	</nav>
+	<p class="gco-pd-az__hint" hidden>Choose a letter, or All, to see the police forces.</p>
 	<div class="gco-pd-az__groups">
 		<?php foreach ( $groups as $letter => $forces ) : ?>
 			<section class="gco-pd-az__group" id="<?php echo esc_attr( $id . '-' . $letter ); ?>" data-letter="<?php echo esc_attr( $letter ); ?>">
