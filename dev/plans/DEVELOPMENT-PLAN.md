@@ -281,6 +281,16 @@ The 0.7.1 spacing fix hid the theme's whole grey bar under the delivery strip. T
 - A-Z list starts collapsed with a hint; a letter or All opens it, clicking the open letter again closes it; the hero's "Browse all" link and "View all" link open the whole list; without JavaScript the full list still shows.
 - Next: the individual force page rework (no sidebar, same look as the main page) once the client's comments arrive.
 
+### 0.8.0 — force pages follow the main police page, no sidebar (client request, 28 Nov 2026)
+
+The client found the sidebar made the force pages busy and limited the content width, and asked for the pages to look like the main police page.
+- Same hero band as the main page (full width, black and white photo under the green wash) with breadcrumb, tag, title, tagline, intro and crest.
+- The sidebar "FOI at a glance" box became a full-width row of figure cards under the hero (five waiting times, national rank, % within 4 months, certificate holders, with the FOI reference and date in the subtitle and the shop button), like the stat cards on the main page. Forces without FOI figures get a "National figures at a glance" row.
+- "On this page" became a jump bar of pills under the figures (scrolls sideways on phones).
+- All sections are full-width cards; GP medical and contact sit side by side on wide screens. Text is limited to a readable line length.
+- Removed: the two-column layout, the sticky sidebar and the sidebar styles.
+- Tested on all 43 forces (no warnings) and on desktop and phone widths.
+
 ## 4. Timeline
 
 Assumes work starts **Mon 16 Nov 2026**; the FOI data arrives ~**30 Nov**.
