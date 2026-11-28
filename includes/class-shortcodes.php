@@ -557,7 +557,7 @@ final class GCO_PD_Shortcodes {
 		foreach ( array_map( 'trim', explode( ',', $atts['cards'] ) ) as $card ) {
 			switch ( $card ) {
 				case 'certificates':
-					$cards[] = array( 'users', $npcc ? GCO_PD_Format::number( $npcc['certificates'] ) : null, 'Total firearm and shotgun certificates in England & Wales', $source );
+					$cards[] = array( 'users', $npcc ? GCO_PD_Format::number( $npcc['certificates'] ) : null, 'Total firearm, shotgun and RFD certificates in England & Wales', $source );
 					break;
 				case 'holders':
 					$cards[] = array( 'users', $npcc ? GCO_PD_Format::number( $npcc['holders'] ) : null, 'Firearm and shotgun certificate holders', $source );
@@ -880,13 +880,15 @@ final class GCO_PD_Shortcodes {
 					'read_text' => 'Read the guide',
 					'title'     => 'Application and Gun Cabinet Guides',
 					'subtitle'  => 'Practical advice to help with your firearms or shotgun certificate application and home security arrangements.',
+				'highlight' => '',
 				)
 			),
 			$atts,
 			'gco_police_guides'
 		);
-		$limit = max( 1, min( 12, (int) $atts['limit'] ) );
-		$ids   = array_filter( array_map( 'absint', explode( ',', (string) $atts['ids'] ) ) );
+		$limit     = max( 1, min( 12, (int) $atts['limit'] ) );
+		$ids       = array_filter( array_map( 'absint', explode( ',', (string) $atts['ids'] ) ) );
+		$highlight = array_filter( array_map( 'absint', explode( ',', (string) $atts['highlight'] ) ) );
 
 		$query = array(
 			'post_status'         => 'publish',
@@ -911,9 +913,12 @@ final class GCO_PD_Shortcodes {
 
 		$cards = array();
 		foreach ( $posts as $post ) {
+			// A page (for example the shop landing page) stands out from the blog articles beside it; IDs in
+			// highlight="" can mark any other card the same way.
 			$cards[] = array(
-				'url'   => get_permalink( $post ),
-				'title' => get_the_title( $post ),
+				'url'       => get_permalink( $post ),
+				'title'     => get_the_title( $post ),
+				'highlight' => 'post' !== $post->post_type || in_array( (int) $post->ID, $highlight, true ),
 				'image' => get_the_post_thumbnail(
 					$post,
 					'medium_large',

@@ -2,7 +2,7 @@
 /**
  * Guide cards: image, title, "Read the guide".
  *
- * @var array[] $cards     url, title, image (markup or '').
+ * @var array[] $cards     url, title, image (markup or ''), highlight (bool).
  * @var string  $read_text Link text.
  *
  * @package GCO_Police_Data
@@ -12,12 +12,16 @@ defined( 'ABSPATH' ) || exit;
 ?>
 <div class="gco-pd gco-pd-guides">
 	<?php foreach ( $cards as $card ) : ?>
-		<article class="gco-pd-guide">
+		<article class="gco-pd-guide<?php echo ! empty( $card['highlight'] ) ? ' gco-pd-guide--highlight' : ''; ?>">
 			<a class="gco-pd-guide__media" href="<?php echo esc_url( $card['url'] ); ?>" tabindex="-1" aria-hidden="true">
 				<?php if ( $card['image'] ) : ?>
 					<?php echo $card['image']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_the_post_thumbnail(). ?>
 				<?php else : ?>
-					<span class="gco-pd-guide__placeholder"><?php echo GCO_PD_Icons::get( 'book' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></span>
+					<?php if ( ! empty( $card['highlight'] ) ) : ?>
+						<span class="gco-pd-guide__placeholder gco-pd-guide__placeholder--shield"><?php echo GCO_PD_Icons::get( 'shield' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><span class="gco-pd-guide__badge">Police approved</span></span>
+					<?php else : ?>
+						<span class="gco-pd-guide__placeholder"><?php echo GCO_PD_Icons::get( 'book' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></span>
+					<?php endif; ?>
 				<?php endif; ?>
 			</a>
 			<div class="gco-pd-guide__body">

@@ -199,25 +199,34 @@
 	function initAz( root ) {
 		var controls = Array.prototype.slice.call( root.querySelectorAll( '.gco-pd-az__letter' ) );
 		var groups = Array.prototype.slice.call( root.querySelectorAll( '.gco-pd-az__group' ) );
+		var hint = root.querySelector( '.gco-pd-az__hint' );
+		var current = null;
 		if ( ! controls.length ) {
 			return;
 		}
 		root.classList.add( 'is-js' );
 
+		/* letter: a letter, '' for All, or null for collapsed. */
 		function show( letter ) {
+			current = letter;
 			groups.forEach( function ( group ) {
-				group.hidden = letter !== '' && group.getAttribute( 'data-letter' ) !== letter;
+				group.hidden = letter === null || ( letter !== '' && group.getAttribute( 'data-letter' ) !== letter );
 			} );
 			controls.forEach( function ( control ) {
-				control.setAttribute( 'aria-pressed', control.getAttribute( 'data-letter' ) === letter ? 'true' : 'false' );
+				control.setAttribute( 'aria-pressed', letter !== null && control.getAttribute( 'data-letter' ) === letter ? 'true' : 'false' );
 				control.setAttribute( 'role', 'button' );
 			} );
+			if ( hint ) {
+				hint.hidden = letter !== null;
+			}
 		}
 
 		controls.forEach( function ( link ) {
 			link.addEventListener( 'click', function ( event ) {
+				var letter = link.getAttribute( 'data-letter' );
 				event.preventDefault();
-				show( link.getAttribute( 'data-letter' ) );
+				// Clicking the open letter (or All) again closes the list.
+				show( current === letter ? null : letter );
 			} );
 		} );
 		document.querySelectorAll( '[data-gco-az-all="' + root.id + '"]' ).forEach( function ( link ) {
@@ -227,7 +236,20 @@
 				root.scrollIntoView( { block: 'start' } );
 			} );
 		} );
-		show( '' );
+		// "Browse all ..." links that point at this section (e.g. #browse) open the whole list.
+		var anchor = root.parentElement ? root.parentElement.closest( '[id]' ) : null;
+		if ( anchor ) {
+			document.querySelectorAll( 'a[href="#' + anchor.id + '"]' ).forEach( function ( link ) {
+				link.addEventListener( 'click', function () {
+					show( '' );
+				} );
+			} );
+			if ( window.location.hash === '#' + anchor.id ) {
+				show( '' );
+				return;
+			}
+		}
+		show( null );
 	}
 
 	/* ---------------------------------------------------------------- Expand */
