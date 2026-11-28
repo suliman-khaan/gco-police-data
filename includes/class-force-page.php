@@ -821,17 +821,17 @@ final class GCO_PD_Force_Page {
 
 		$stats = array();
 		if ( $npcc && ! empty( $npcc['rank'] ) ) {
-			$stats[] = array( GCO_PD_Format::ordinal( $npcc['rank'] ) . ' / ' . $npcc['ranked_of'], 'National ranking (NPCC)' );
+			$stats[] = array( GCO_PD_Format::ordinal( $npcc['rank'] ) . ' / ' . $npcc['ranked_of'], 'National ranking (NPCC)', 'trophy' );
 		}
 		if ( $npcc && null !== ( $npcc['pct'] ?? null ) ) {
-			$stats[] = array( GCO_PD_Format::percent( $npcc['pct'] ), 'Completed within 4 months' );
+			$stats[] = array( GCO_PD_Format::percent( $npcc['pct'] ), 'Completed within 4 months', 'check' );
 		}
 		$sg  = $force['foi']['metrics']['sg_holders']['value'] ?? null;
 		$fac = $force['foi']['metrics']['fac_holders']['value'] ?? null;
 		if ( null !== $sg && null !== $fac ) {
-			$stats[] = array( GCO_PD_Format::number( $sg + $fac ), 'Certificate holders' );
+			$stats[] = array( GCO_PD_Format::number( $sg + $fac ), 'Certificate holders', 'users' );
 		} elseif ( $npcc && null !== ( $npcc['holders'] ?? null ) ) {
-			$stats[] = array( GCO_PD_Format::number( $npcc['holders'] ), 'Certificate holders' );
+			$stats[] = array( GCO_PD_Format::number( $npcc['holders'] ), 'Certificate holders', 'users' );
 		}
 
 		return array(
